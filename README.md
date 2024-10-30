@@ -39,7 +39,7 @@ This repository represents my journey of personal growth and philosophical explo
 - **Infrastructure**: GCP Cloud Run for containerized services
 - **Third Party APIs**: 
   - Todoist for task management
-  - OpenAI/Anthropic for LLM integration
+  - OpenAI for LLM integration
 
 ## Project Structure
 
@@ -81,7 +81,7 @@ reflection-journal/
 1. **Prerequisites**
    - MySQL database setup
    - Todoist API key
-   - OpenAI/Anthropic API key
+   - OpenAI API key
 
 2. **Database Setup**
    ```bash
@@ -97,7 +97,7 @@ reflection-journal/
    ```bash
    # Install dependencies
    cd backend && pip install -r requirements.txt
-   cd ../frontend && pip install -r requirements.txt
+   cd frontend && pip install -r requirements.txt
 
    # Initialize database and Alembic
    cd backend
@@ -131,7 +131,6 @@ Create a [`.env`](.env) file with the following:
 ```
 TODOIST_API_KEY=your_todoist_key
 OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
 MYSQL_USER=your_mysql_user
 MYSQL_PASSWORD=your_mysql_password
 MYSQL_HOST=your_mysql_host

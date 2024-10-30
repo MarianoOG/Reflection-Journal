@@ -1,0 +1,53 @@
+name: Frontend Docker Build and Push
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  deploy:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        id: 'checkout'
+        uses: actions/checkout@v2
+
+      - name: Google Auth
+        id: 'auth'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.CREDENTIALS }}'
+
+      - name: 'Set up Cloud SDK'
+        id: 'setup'
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: Configure Docker
+        id: 'docker'
+        run: |
+          gcloud auth configure-docker ${{ secrets.LOCATION }}-docker.pkg.dev 
+
+      - name: Build and Push Container
+        id: 'build'
+        run: |
+          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod:latest" ./frontend
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod" --all-tags
+
+      - name: Deploy to Cloud Run
+        id: 'deploy'
+        run: |
+          gcloud run deploy reflexion-journal-frontend \
+          --region ${{ secrets.LOCATION }} \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod" \
+          --allow-unauthenticated \
+          --min-instances=0 \
+          --max-instances=1 \
+          --project ${{ secrets.PROJECT_ID }} \
+          --set-env-vars "CLIENT_ID=${{ secrets.CLIENT_ID }}" \
+          --set-env-vars "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}"

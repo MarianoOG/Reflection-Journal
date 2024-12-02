@@ -41,3 +41,6 @@ data/
 
 # Database
 *.sqlite3
+
+# Data
+data/

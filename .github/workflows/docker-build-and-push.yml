@@ -1,10 +1,10 @@
-name: Frontend Docker Build and Push
+name: Docker Build and Push
 
 on:
   push:
     branches: [ "main" ]
     paths:
-      - 'frontend/**'
+      - 'src/**'
 
 jobs:
   deploy:
@@ -36,15 +36,15 @@ jobs:
       - name: Build and Push Container
         id: 'build'
         run: |
-          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod:latest" ./frontend
-          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod" --all-tags
+          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod:latest" ./src
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod" --all-tags
 
       - name: Deploy to Cloud Run
         id: 'deploy'
         run: |
-          gcloud run deploy reflexion-journal-frontend \
+          gcloud run deploy reflexion-journal \
           --region ${{ secrets.LOCATION }} \
-          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal-frontend/prod" \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod" \
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=1 \

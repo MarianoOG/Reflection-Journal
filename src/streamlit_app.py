@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from models import QuestionManager, JournalManager, ReflectionEntry
+from managers import QuestionManager, JournalManager
 
 
 question_manager = QuestionManager()
@@ -11,17 +11,21 @@ def get_journal_manager() -> JournalManager:
     return JournalManager()
 
 
-def analyze_entry(entry: ReflectionEntry):
-    answer = st.session_state[f"answer_{entry.id}"].strip()
+def analyze_entry(entry_id: str):
+    answer = st.session_state[f"answer_{entry_id}"].strip()
     if not answer:
         return
-    entry.answer = answer
-
+    
     journal_manager = get_journal_manager()
+    entry = journal_manager.get_entry(entry_id)
+    if not entry:
+        st.error("Entry not found")
+        st.stop()
+    entry.answer = answer
     journal_manager.upsert_entry(entry)
-    if not journal_manager.analyze_entry(entry.id):
+    if not journal_manager.analyze_entry(entry_id):
         st.error("Analysis not generated")
-    st.session_state.current_entry_id = entry.id
+    st.session_state.current_entry_id = entry_id
     return
 
 
@@ -36,14 +40,21 @@ def set_current_entry(entry_id: str):
     return
 
 
-def render_entry(entry: ReflectionEntry, is_child: bool = False):    
+def render_entry(entry_id: str, is_child: bool = False):    
+    # Get the entry
+    journal_manager = get_journal_manager()
+    entry = journal_manager.get_entry(entry_id)
+    if not entry:
+        st.error("Entry not found")
+        st.stop()
+
     # Check if the entry is the current entry and has a parent
     if st.session_state.current_entry_id == entry.id and entry.parent_id:
         back_col, _ = st.columns([1, 5])
         back_col.button("⬅️ Go back", 
-                    key=f"back_{entry.id}", 
-                    on_click=set_current_entry, 
-                    args=(entry.parent_id,))
+                        key=f"back_{entry.id}", 
+                        on_click=set_current_entry, 
+                        args=(entry.parent_id,))
 
     # Display the question
     st.subheader(entry.question)
@@ -70,19 +81,25 @@ def render_entry(entry: ReflectionEntry, is_child: bool = False):
                          value=answer, 
                          key=f"answer_{entry.id}", 
                          on_change=analyze_entry,
-                         args=(entry,),
+                         args=(entry.id,),
                          height=100)
-            st.button("Ignore", 
-                       key=f"ignore_{entry.id}", 
-                       on_click=ignore_entry, 
-                       args=(entry.id,),
-                       use_container_width=True)
+            col_ignore, _, col_expand, = st.columns([1, 2, 1])
+            col_expand.button("Expand ➡️", 
+                              key=f"expand_{entry.id}", 
+                              on_click=set_current_entry,
+                              args=(entry.id,),
+                              use_container_width=True)
+            col_ignore.button("Ignore", 
+                              key=f"ignore_{entry.id}", 
+                              on_click=ignore_entry, 
+                              args=(entry.id,),
+                              use_container_width=True)
         else:
             st.text_area(f"Reflection", 
                          value=answer, 
                          key=f"answer_{entry.id}", 
                          on_change=analyze_entry,
-                         args=(entry,),
+                         args=(entry.id,),
                          height=200)
     
     # Check if the entry is a child
@@ -97,7 +114,7 @@ def render_entry(entry: ReflectionEntry, is_child: bool = False):
         if not child_entry:
             st.error(f"Child entry {child} not found")
             st.stop()
-        render_entry(child_entry, is_child=True)
+        render_entry(child_entry.id, is_child=True)
     return
 
 
@@ -112,6 +129,16 @@ def render_report_analysis(report_analysis: dict):
                 st.write(f"{index + 1}. {task}")
 
 
+def get_unanswered_entry():
+    journal_manager = get_journal_manager()
+    entry = journal_manager.get_unanswered_entry()
+    if entry:
+        st.session_state.current_entry_id = entry.id
+    else:
+        st.info("All entries have been answered")
+    return
+
+
 def main():
     # Get the journal manager and stats
     journal_manager = get_journal_manager()
@@ -123,10 +150,14 @@ def main():
     metric_col1, metric_col2 = st.sidebar.columns(2)
     metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
     metric_col2.metric(label="Total Entries", value=total_entries)
+    st.sidebar.button("Get unanswered entry", 
+                      on_click=get_unanswered_entry,
+                      use_container_width=True)
 
     # Generate insights
-    if st.sidebar.button("Generate Insights and save", use_container_width=True, disabled=analyzed_entries == 0):
-        report_analysis = journal_manager.analyze_entries_and_save()
+    if analyzed_entries == total_entries and analyzed_entries > 0:
+        with st.spinner("All entries analyzed. Generating insights..."):
+            report_analysis = journal_manager.analyze_entries_and_save()
         if report_analysis:
             render_report_analysis(json.loads(report_analysis))
             st.sidebar.info(f"{analyzed_entries} entries saved")
@@ -135,8 +166,7 @@ def main():
     # Initialize the reflection entries
     if total_entries == 0:
         question = question_manager.get_random_question()
-        original_entry = ReflectionEntry(question=question)
-        journal_manager.upsert_entry(original_entry)
+        original_entry = journal_manager.add_entry(question)
         st.session_state.current_entry_id = original_entry.id
 
     # Display the current entry
@@ -144,7 +174,7 @@ def main():
     if not current_entry:
         st.error("Current entry not found")
         st.stop()
-    render_entry(current_entry)
+    render_entry(current_entry.id)
 
 
 if __name__ == "__main__":

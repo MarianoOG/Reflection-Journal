@@ -1,42 +1,10 @@
-from typing import Optional, Literal, List
-from pydantic import BaseModel
+from typing import Optional
 from openai import OpenAI
+from models import ReflectionAnalysis, ReportAnalysis
 from config import settings
 
-######################
-# LLM Response Models
-######################
-
-
-class Belief(BaseModel):
-    belief_type: Literal["Assumption", "Blind Spot", "Contradiction"]
-    statement: str
-    challenge_question: str
-
-class ReflectionAnalysis(BaseModel):
-    themes: List[str]
-    sentiment: Literal["Positive", "Slightly Positive", "Neutral", "Slightly Negative", "Negative"]
-    beliefs: List[Belief]
-
-class Insight(BaseModel):
-    insight: str
-    goal: str
-    tasks: List[str]
-    importance: Literal["High", "Medium", "Low"]
-
-class ReportAnalysis(BaseModel):
-    main_question: str
-    answer_summary: str
-    insights: List[Insight]
-
-
-######################
-# LLM Service
-######################
-
-
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        
+
 
 def analyze_reflection(question: str, answer: str) -> Optional[ReflectionAnalysis]:        
     instructions = "Extract information from the reflection and provide a detailed analysis."

@@ -1,55 +1,49 @@
 import os
 import json
 import random
-from typing import Optional, Literal, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 from uuid import uuid4
 from llm import analyze_reflection, analyze_report
-from models import ReflectionEntry
+from models import ReflectionEntry, Question
 from config import directory_initializer
 
 
 class QuestionManager:
     def __init__(self):
-        # Initialize the question manager
-        self.period_to_frequency = {"daily": 365, "weekly": 52, "monthly": 12, "quarterly": 4, "yearly": 1}
-        self.frequency_to_period = {365: "daily", 52: "weekly", 12: "monthly", 4: "quarterly", 1: "yearly"}
         self.questions = self._load_questions()
 
-    def _load_questions(self) -> Dict[str, int]:
-        # Load the questions from the JSONL file
-        with open("../data/questions.jsonl", "r", encoding="utf-8") as f:
-            data = [json.loads(line) for line in f]
-        if not data:
-            return dict()
+    def _verify_question(self, question: Question) -> bool:
+        return question.question != "" and question.weight > 0 and len(question.tags) > 0
 
-        # Get all questions and their frequency
-        questions = {}
-        for item in data:
-            if item["question"] not in questions:
-                questions[item["question"]] = self.period_to_frequency[item["period"]]
+    def _load_questions(self) -> List[Question]:
+        questions = list()
+        with open("../data/questions.jsonl", "r", encoding="utf-8") as f:
+            for line in f:
+                data = json.loads(line)
+                if "question" not in data or "weight" not in data or "tags" not in data:
+                    continue
+                current_question = Question(question=data["question"], weight=data["weight"], tags=data["tags"])
+                if self._verify_question(current_question):
+                    questions.append(current_question)
         return questions
 
+    def _save_questions(self) -> None:
+        with open("../data/questions.jsonl", "w+", encoding="utf-8") as f:
+            for question in self.questions:
+                f.write(question.model_dump_json() + "\n")
 
     def get_random_question(self) -> str:
-        return random.choices(list(self.questions.keys()), weights=list(self.questions.values()), k=1)[0]
+        questions = [question.question for question in self.questions]
+        weights = [question.weight for question in self.questions]
+        return random.choices(questions, weights=weights, k=1)[0]
 
-    def add_question(self, question: str, period: Literal["daily", "weekly", "monthly", "quarterly", "yearly"] = "weekly") -> bool:
-        if period not in self.period_to_frequency:
-            return False
-        self.questions[question] = self.period_to_frequency[period]
-        self.save_questions()
-        return True
-
-    def save_questions(self) -> None:
-        # Write to JSONL file
-        with open("../data/questions.jsonl", "w+", encoding="utf-8") as f:
-            for question, frequency in self.questions.items():
-                record = {
-                    "question": question,
-                    "period": self.frequency_to_period[frequency]
-                }
-                f.write(json.dumps(record) + "\n")
+    def add_question(self, question: str, weight: float, tags: List[str]) -> bool:
+        if self._verify_question(Question(question=question, weight=weight, tags=tags)):
+            self.questions.append(Question(question=question, weight=weight, tags=tags))
+            self._save_questions()
+            return True
+        return False
 
 
 class JournalManager:

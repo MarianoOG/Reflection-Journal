@@ -150,7 +150,7 @@ def main():
     metric_col1, metric_col2 = st.sidebar.columns(2)
     metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
     metric_col2.metric(label="Total Entries", value=total_entries)
-    st.sidebar.button("Get unanswered entry", 
+    st.sidebar.button("Go to unanswered question", 
                       on_click=get_unanswered_entry,
                       use_container_width=True)
 

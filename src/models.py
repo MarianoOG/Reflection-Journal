@@ -3,6 +3,11 @@ from datetime import datetime
 from typing import Optional, Literal, List
 from pydantic import BaseModel, Field
 
+class Question(BaseModel):
+    question: str
+    weight: float
+    tags: List[str]
+
 class Belief(BaseModel):
     belief_type: Literal["Assumption", "Blind Spot", "Contradiction"]
     statement: str

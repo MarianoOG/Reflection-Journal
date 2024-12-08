@@ -4,6 +4,7 @@ from typing import Optional, Literal, List
 from pydantic import BaseModel, Field
 
 class Question(BaseModel):
+    lang: Literal["en", "es"] = "en"
     question: str = Field(min_length=1)
     weight: float = Field(ge=0, le=10)
     tags: List[str] = Field(min_length=1)
@@ -40,4 +41,3 @@ class ReportAnalysis(BaseModel):
     main_question: str
     answer_summary: str
     insights: List[Insight]
-

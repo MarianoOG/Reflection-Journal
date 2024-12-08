@@ -13,19 +13,17 @@ class QuestionManager:
     def __init__(self):
         self.questions = self._load_questions()
 
-    def _verify_question(self, question: Question) -> bool:
-        return question.question != "" and question.weight > 0 and len(question.tags) > 0
-
     def _load_questions(self) -> List[Question]:
         questions = list()
         with open("../data/questions.jsonl", "r", encoding="utf-8") as f:
             for line in f:
                 data = json.loads(line)
-                if "question" not in data or "weight" not in data or "tags" not in data:
+                try:
+                    current_question = Question(**data)
+                except Exception as e:
+                    print(e)
                     continue
-                current_question = Question(question=data["question"], weight=data["weight"], tags=data["tags"])
-                if self._verify_question(current_question):
-                    questions.append(current_question)
+                questions.append(current_question)
         return questions
 
     def _save_questions(self) -> None:
@@ -39,11 +37,14 @@ class QuestionManager:
         return random.choices(questions, weights=weights, k=1)[0]
 
     def add_question(self, question: str, weight: float, tags: List[str]) -> bool:
-        if self._verify_question(Question(question=question, weight=weight, tags=tags)):
-            self.questions.append(Question(question=question, weight=weight, tags=tags))
-            self._save_questions()
-            return True
-        return False
+        try:
+            current_question = Question(question=question, weight=weight, tags=tags)
+        except Exception as e:
+            print(e)
+            return False
+        self.questions.append(current_question)
+        self._save_questions()
+        return True
 
 
 class JournalManager:

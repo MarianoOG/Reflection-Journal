@@ -31,10 +31,9 @@ class QuestionManager:
             for question in self.questions:
                 f.write(question.model_dump_json() + "\n")
 
-    def get_random_question(self) -> str:
-        questions = [question.question for question in self.questions]
+    def get_random_question(self) -> Question:
         weights = [question.weight for question in self.questions]
-        return random.choices(questions, weights=weights, k=1)[0]
+        return random.choices(self.questions, weights=weights, k=1)[0]
 
     def add_question(self, question: str, weight: float, tags: List[str]) -> bool:
         try:
@@ -51,16 +50,18 @@ class JournalManager:
     def __init__(self):
         self.uuid_str = uuid4().hex
         self.original_entry_id = None
+        self.lang = "en"
         self.entries = {}
 
-    def add_entry(self, question: str, answer: Optional[str] = None) -> ReflectionEntry:
-        entry = ReflectionEntry(question=question, answer=answer)
+    def add_entry(self, question: Question, answer: Optional[str] = None) -> ReflectionEntry:
+        entry = ReflectionEntry(question=question.question, lang=question.lang, answer=answer)
         self.upsert_entry(entry)
         return entry
 
     def upsert_entry(self, entry: ReflectionEntry) -> None:
         if not self.original_entry_id:
             self.original_entry_id = entry.id
+            self.lang = entry.lang
         self.entries[entry.id] = entry
 
     def get_entry(self, entry_id: str) -> Optional[ReflectionEntry]:
@@ -140,7 +141,8 @@ class JournalManager:
                 question=belief.challenge_question, 
                 context=belief.statement, 
                 context_type=belief.belief_type,
-                parent_id=entry.id
+                parent_id=entry.id,
+                lang=entry.lang
             )
             self.upsert_entry(new_entry)
             entry.children_ids.append(new_entry.id)

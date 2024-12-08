@@ -22,6 +22,7 @@ class ReflectionAnalysis(BaseModel):
 class ReflectionEntry(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     created_at: datetime = Field(default_factory=datetime.now)
+    lang: Literal["en", "es"] = "en"
     question: str = Field(min_length=1)
     answer: Optional[str] = None
     themes: List[str] = Field(default_factory=list)

@@ -3,7 +3,9 @@ import streamlit as st
 from managers import QuestionManager, JournalManager
 
 
-question_manager = QuestionManager()
+@st.cache_resource
+def get_question_manager() -> QuestionManager:
+    return QuestionManager()
 
 
 @st.cache_resource
@@ -31,6 +33,21 @@ def analyze_entry(entry_id: str):
 
 def ignore_entry(entry_id: str):
     journal_manager = get_journal_manager()
+    journal_manager.delete_entry(entry_id)
+    return
+
+
+def save_for_later(entry_id: str):
+    journal_manager = get_journal_manager()
+    question_manager = get_question_manager()
+    entry = journal_manager.get_entry(entry_id)
+    if not entry:
+        st.error("Entry not found")
+        return
+    question_manager.add_question(entry.question, 
+                                  context=f"{entry.context_type}: {entry.context}" if entry.context else None, 
+                                  weight=0.5, 
+                                  language=entry.lang)
     journal_manager.delete_entry(entry_id)
     return
 
@@ -69,38 +86,36 @@ def render_entry(entry_id: str, is_child: bool = False):
             col1.pills("Sentiment", [entry.sentiment], key=f"sentiment_{entry.id}", disabled=True)
             col2.pills("Themes", entry.themes, key=f"themes_{entry.id}", disabled=True)
         else:
-            st.button("Expand ➡️", 
+            st.button("Expand", 
                        key=f"expand_{entry.id}", 
                        on_click=set_current_entry, 
                        args=(entry.id,),
                        use_container_width=True)
     else:
         answer = entry.answer if entry.answer else ""
-        if is_child:
-            st.text_area(f"Reflection", 
-                         value=answer, 
-                         key=f"answer_{entry.id}", 
-                         on_change=analyze_entry,
-                         args=(entry.id,),
-                         height=100)
-            col_ignore, _, col_expand, = st.columns([1, 2, 1])
-            col_expand.button("Expand ➡️", 
-                              key=f"expand_{entry.id}", 
-                              on_click=set_current_entry,
-                              args=(entry.id,),
-                              use_container_width=True)
+        st.text_area(f"Reflection", 
+                        value=answer, 
+                        key=f"answer_{entry.id}", 
+                        on_change=analyze_entry,
+                        args=(entry.id,),
+                        height=150)
+        if entry.context_type != "Original":
+            col_ignore, col_save_for_later, col_expand, = st.columns([1, 2, 1])
             col_ignore.button("Ignore", 
-                              key=f"ignore_{entry.id}", 
-                              on_click=ignore_entry, 
-                              args=(entry.id,),
-                              use_container_width=True)
-        else:
-            st.text_area(f"Reflection", 
-                         value=answer, 
-                         key=f"answer_{entry.id}", 
-                         on_change=analyze_entry,
-                         args=(entry.id,),
-                         height=200)
+                                key=f"ignore_{entry.id}", 
+                                on_click=ignore_entry, 
+                                args=(entry.id,),
+                                use_container_width=True)
+            col_save_for_later.button("Save for later", 
+                                        key=f"save_for_later_{entry.id}", 
+                                        on_click=save_for_later,
+                                        args=(entry.id,),
+                                        use_container_width=True)
+            col_expand.button("Expand", 
+                                key=f"expand_{entry.id}", 
+                                on_click=set_current_entry,
+                                args=(entry.id,),
+                                use_container_width=True)
     
     # Check if the entry is a child
     st.divider()
@@ -165,6 +180,7 @@ def main():
 
     # Initialize the reflection entries
     if total_entries == 0:
+        question_manager = get_question_manager()
         question = question_manager.get_random_question()
         original_entry = journal_manager.add_entry(question)
         st.session_state.current_entry_id = original_entry.id
@@ -172,9 +188,14 @@ def main():
     # Display the current entry
     current_entry = journal_manager.get_entry(st.session_state.current_entry_id)
     if not current_entry:
-        st.error("Current entry not found")
-        st.stop()
-    render_entry(current_entry.id)
+        st.warning("Current entry not found, going back to original entry")
+        if journal_manager.original_entry_id:
+            current_entry = journal_manager.get_entry(journal_manager.original_entry_id)
+        else:
+            st.error("Original entry not found")
+            st.stop()
+    if current_entry:
+        render_entry(current_entry.id)
 
 
 if __name__ == "__main__":

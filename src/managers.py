@@ -1,49 +1,61 @@
 import os
 import json
 import random
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from uuid import uuid4
 from llm import analyze_reflection, analyze_report
-from models import ReflectionEntry, Question
+from models import QuestionEntry, ReflectionEntry
 from config import directory_initializer
 
 
 class QuestionManager:
-    def __init__(self):
-        self.questions = self._load_questions()
+    file_path: str
+    question_entries: Dict[str, QuestionEntry]
 
-    def _load_questions(self) -> List[Question]:
-        questions = list()
-        with open("../data/questions.jsonl", "r", encoding="utf-8") as f:
+    def __init__(self, file_path: str = "../data/questions.jsonl"):
+        self.file_path = file_path
+        self.question_entries = {}
+        self._load_questions()
+
+    def _load_questions(self) -> None:
+        with open(self.file_path, "r", encoding="utf-8") as f:
             for line in f:
-                data = json.loads(line)
                 try:
-                    current_question = Question(**data)
+                    data = json.loads(line)
+                    current_question = QuestionEntry(**data)
                 except Exception as e:
                     print(e)
                     continue
-                questions.append(current_question)
-        return questions
+                self._add_question(current_question)
 
     def _save_questions(self) -> None:
-        with open("../data/questions.jsonl", "w+", encoding="utf-8") as f:
-            for question in self.questions:
+        with open(self.file_path, "w+", encoding="utf-8") as f:
+            for question in self.question_entries.values():
                 f.write(question.model_dump_json() + "\n")
+                
+    def _add_question(self, question_entry: QuestionEntry) -> bool:
+        if question_entry.question not in self.question_entries:
+            self.question_entries[question_entry.question] = question_entry
+            return True
+        return False
 
-    def get_random_question(self) -> Question:
-        weights = [question.weight for question in self.questions]
-        return random.choices(self.questions, weights=weights, k=1)[0]
+    def get_random_question(self) -> QuestionEntry:
+        weights = [question.weight for question in self.question_entries.values()]
+        return random.choices(list(self.question_entries.values()), weights=weights, k=1)[0]
 
-    def add_question(self, question: str, weight: float, tags: List[str]) -> bool:
-        try:
-            current_question = Question(question=question, weight=weight, tags=tags)
-        except Exception as e:
-            print(e)
-            return False
-        self.questions.append(current_question)
-        self._save_questions()
-        return True
+    def add_question_entry(self, question_entry: QuestionEntry) -> bool:
+        if self._add_question(question_entry):
+            self._save_questions()
+            return True
+        return False
+    
+    def remove_question(self, question: str) -> bool:
+        if question in self.question_entries:
+            del self.question_entries[question]
+            self._save_questions()
+            return True
+        return False
 
 
 class JournalManager:
@@ -91,6 +103,7 @@ class JournalManager:
             for child in children:
                 if parent:
                     child.parent_id = parent.id
+                    parent.children_ids.append(child.id)
                 else:
                     self.delete_entry(child.id)
             del self.entries[entry_id]
@@ -126,7 +139,7 @@ class JournalManager:
             return False
 
         # Analyze the reflection
-        analysis = analyze_reflection(entry.question, entry.answer)
+        analysis = analyze_reflection(entry.question, entry.answer, entry.lang)
         if not analysis:
             print("Analysis not generated")
             return False
@@ -181,7 +194,7 @@ class JournalManager:
                 return f.read()
         
         # Save the insights if they don't exist
-        analysis = analyze_report(report)
+        analysis = analyze_report(report, self.lang)
         if not analysis:
             return None
         analysis_str = analysis.model_dump_json(indent=2)

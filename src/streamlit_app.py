@@ -1,6 +1,5 @@
-import json
 import streamlit as st
-from managers import QuestionManager, JournalManager
+from managers import QuestionManager, ReflectionManager, JournalManager
 
 
 @st.cache_resource
@@ -9,46 +8,49 @@ def get_question_manager() -> QuestionManager:
 
 
 @st.cache_resource
+def get_reflection_manager() -> ReflectionManager:
+    return ReflectionManager()
+
+
+@st.cache_resource
 def get_journal_manager() -> JournalManager:
-    return JournalManager()
+    reflection_manager = get_reflection_manager()
+    return JournalManager(reflection_manager)
 
 
-def analyze_entry(entry_id: str):
+def analyze_reflection(entry_id: str):
     answer = st.session_state[f"answer_{entry_id}"].strip()
     if not answer:
         return
     
-    journal_manager = get_journal_manager()
-    entry = journal_manager.get_entry(entry_id)
+    reflection_manager = get_reflection_manager()
+    entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error("Entry not found")
         st.stop()
     entry.answer = answer
-    journal_manager.upsert_entry(entry)
-    if not journal_manager.analyze_entry(entry_id):
+    reflection_manager.upsert_reflection(entry)
+    if not reflection_manager.analyze_reflection_by_id(entry_id):
         st.error("Analysis not generated")
     st.session_state.current_entry_id = entry_id
     return
 
 
 def ignore_entry(entry_id: str):
-    journal_manager = get_journal_manager()
-    journal_manager.delete_entry(entry_id)
+    reflection_manager = get_reflection_manager()
+    reflection_manager.delete_reflection_by_id(entry_id)
     return
 
 
 def save_for_later(entry_id: str):
-    journal_manager = get_journal_manager()
+    reflection_manager = get_reflection_manager()
     question_manager = get_question_manager()
-    entry = journal_manager.get_entry(entry_id)
+    entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error("Entry not found")
         return
-    question_manager.add_question(entry.question, 
-                                  context=f"{entry.context_type}: {entry.context}" if entry.context else None, 
-                                  weight=0.5, 
-                                  language=entry.lang)
-    journal_manager.delete_entry(entry_id)
+    question_manager.add_question_entry(entry)
+    reflection_manager.delete_reflection_by_id(entry_id)
     return
 
 
@@ -59,8 +61,8 @@ def set_current_entry(entry_id: str):
 
 def render_entry(entry_id: str, is_child: bool = False):    
     # Get the entry
-    journal_manager = get_journal_manager()
-    entry = journal_manager.get_entry(entry_id)
+    reflection_manager = get_reflection_manager()
+    entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error("Entry not found")
         st.stop()
@@ -96,7 +98,7 @@ def render_entry(entry_id: str, is_child: bool = False):
         st.text_area(f"Reflection", 
                         value=answer, 
                         key=f"answer_{entry.id}", 
-                        on_change=analyze_entry,
+                        on_change=analyze_reflection,
                         args=(entry.id,),
                         height=150)
         if entry.context_type != "Original":
@@ -123,9 +125,9 @@ def render_entry(entry_id: str, is_child: bool = False):
         return
     
     # Render the children entries
-    journal_manager = get_journal_manager()
+    reflection_manager = get_reflection_manager()
     for child in entry.children_ids:
-        child_entry = journal_manager.get_entry(child)
+        child_entry = reflection_manager.get_reflection_by_id(child)
         if not child_entry:
             st.error(f"Child entry {child} not found")
             st.stop()
@@ -133,20 +135,9 @@ def render_entry(entry_id: str, is_child: bool = False):
     return
 
 
-def render_report_analysis(report_analysis: dict):
-    st.header(report_analysis.get("main_question"))
-    st.write(report_analysis.get("answer_summary"))
-    if report_analysis.get("insights"):
-        for insight in report_analysis["insights"]:
-            st.subheader(insight.get("goal"))
-            st.write(insight.get("insight"))
-            for index, task in enumerate(insight.get("tasks")):
-                st.write(f"{index + 1}. {task}")
-
-
-def get_unanswered_entry():
-    journal_manager = get_journal_manager()
-    entry = journal_manager.get_unanswered_entry()
+def get_unanswered_reflection_entry():
+    reflection_manager = get_reflection_manager()
+    entry = reflection_manager.get_unanswered_reflection_entry()
     if entry:
         st.session_state.current_entry_id = entry.id
     else:
@@ -156,8 +147,8 @@ def get_unanswered_entry():
 
 def main():
     # Get the journal manager and stats
-    journal_manager = get_journal_manager()
-    analyzed_entries, total_entries = journal_manager.get_stats()
+    reflection_manager = get_reflection_manager()
+    analyzed_entries, total_entries = reflection_manager.get_statistics()
 
     # Display the sidebar
     st.sidebar.title("Reflection Journal")
@@ -166,31 +157,41 @@ def main():
     metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
     metric_col2.metric(label="Total Entries", value=total_entries)
     st.sidebar.button("Go to unanswered question", 
-                      on_click=get_unanswered_entry,
+                      on_click=get_unanswered_reflection_entry,
                       use_container_width=True)
 
     # Generate insights
     if analyzed_entries == total_entries and analyzed_entries > 0:
         with st.spinner("All entries analyzed. Generating insights..."):
-            report_analysis = journal_manager.analyze_entries_and_save()
+            journal_manager = get_journal_manager()
+            report_analysis = journal_manager.save_journal_entry()
         if report_analysis:
-            render_report_analysis(json.loads(report_analysis))
+            summary_entry = journal_manager.get_summary_entry()
+            if summary_entry:
+                st.subheader(summary_entry.question)
+                st.write(summary_entry.answer)
+            insights = journal_manager.get_insights()
+            for insight in insights:
+                st.subheader(insight.goal)
+                st.write(insight.insight)
+                for index, task in enumerate(insight.tasks):
+                    st.write(f"{index + 1}. {task}")
             st.sidebar.info(f"{analyzed_entries} entries saved")
             return
 
     # Initialize the reflection entries
     if total_entries == 0:
         question_manager = get_question_manager()
-        question = question_manager.get_random_question()
-        original_entry = journal_manager.add_entry(question)
-        st.session_state.current_entry_id = original_entry.id
+        question = question_manager.get_random_question_entry()
+        original_entry_id = reflection_manager.upsert_reflection(question)
+        st.session_state.current_entry_id = original_entry_id
 
     # Display the current entry
-    current_entry = journal_manager.get_entry(st.session_state.current_entry_id)
+    current_entry = reflection_manager.get_reflection_by_id(st.session_state.current_entry_id)
     if not current_entry:
         st.warning("Current entry not found, going back to original entry")
-        if journal_manager.original_entry_id:
-            current_entry = journal_manager.get_entry(journal_manager.original_entry_id)
+        if reflection_manager.original_entry_id:
+            current_entry = reflection_manager.get_reflection_by_id(reflection_manager.original_entry_id)
         else:
             st.error("Original entry not found")
             st.stop()

@@ -1,12 +1,14 @@
-from typing import Optional
+from typing import Optional, Literal
 from openai import OpenAI
 from models import ReflectionAnalysis, ReportAnalysis
-from config import settings
+from config import Settings
+import logging
 
+settings = Settings()
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-def analyze_reflection(question: str, answer: str, language: str = "en") -> Optional[ReflectionAnalysis]:
+def analyze_reflection(question: str, answer: str, language: Literal["en", "es"]) -> Optional[ReflectionAnalysis]:
     # Instructions for the LLM
     instructions = {
         "en": """Extract information from the reflection and provide a detailed analysis.
@@ -41,18 +43,17 @@ def analyze_reflection(question: str, answer: str, language: str = "en") -> Opti
             max_tokens=2000
         )
     except Exception as e:
-        print(e)
+        logging.error(e)
         return None
     return completion.choices[0].message.parsed
 
 
-def analyze_report(report: str, language: str = "en") -> Optional[ReportAnalysis]:
+def analyze_report(report: str, language: Literal["en", "es"]) -> Optional[ReportAnalysis]:
     instructions = {
         "en": """You will analyze a report of questions and answers from a reflection journal.
                 The main question will be the question that the report is related to.
                 The answer summary will be an overall answer of the main question of the report with the main points.
                 The insights will be a list of insights on the core beliefs and assumptions that the report provides.
-                The themes will be a list of themes that the insight talks about.
                 The goal will be a short description of the goal that the report is related to based on the insights.
                 The tasks will be a long a detail list of tasks from start to finish that I can do to archive the goal in the shortest time possible.
                 The importance of the tasks will be a rating of the tasks from high to low based on the insights.""",
@@ -60,7 +61,6 @@ def analyze_report(report: str, language: str = "en") -> Optional[ReportAnalysis
                 La pregunta principal será la pregunta a la que se refiere el informe.
                 El resumen de la respuesta será una respuesta general de la pregunta principal del informe con los puntos principales.
                 Las percepciones serán una lista de ideas sobre las creencias y suposiciones fundamentales que proporciona el informe.
-                Los temas serán una lista de temas que las percepciones abordan.
                 El objetivo será una breve descripción de la meta a la que se refiere el informe basada en las percepciones.
                 Las tareas serán una lista larga y detallada de tareas de principio a fin que puedo hacer para alcanzar el objetivo en el menor tiempo posible.
                 La importancia de las tareas será una calificación de las tareas de alta a baja basada en las percepciones.
@@ -78,6 +78,6 @@ def analyze_report(report: str, language: str = "en") -> Optional[ReportAnalysis
             max_tokens=5000
         )
     except Exception as e:
-        print(e)
+        logging.error(e)
         return None
     return completion.choices[0].message.parsed

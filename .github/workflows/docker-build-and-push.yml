@@ -20,13 +20,13 @@ jobs:
 
       - name: Google Auth
         id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+        uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.CREDENTIALS }}'
 
       - name: 'Set up Cloud SDK'
         id: 'setup'
-        uses: 'google-github-actions/setup-gcloud@v0'
+        uses: 'google-github-actions/setup-gcloud@v2'
 
       - name: Configure Docker
         id: 'docker'

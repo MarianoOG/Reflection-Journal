@@ -147,13 +147,19 @@ class ReflectionManager:
 
             # Remove the reflection from the entries
             del self.reflection_entries[reflection_id]
+
+            # Remove the reflection from the original entry
+            if self.original_entry_id == reflection_id:
+                self.original_entry_id = None
+                self.reflection_entries = {}
+
             return True
         return False
 
     def delete_all_reflections_without_answer(self) -> None:
-        for reflection in self.reflection_entries.values():
-            if not reflection.answer:
-                self.delete_reflection_by_id(reflection.id)
+        ids_without_answer = [reflection.id for reflection in self.reflection_entries.values() if not reflection.answer]
+        for id in ids_without_answer:
+            self.delete_reflection_by_id(id)
 
     def analyze_reflection_by_id(self, reflection_id: str) -> bool:
         # Get the entry and check if it exists
@@ -254,6 +260,7 @@ class JournalManager:
         reflection_analysis = analyze_reflection(analysis.main_question, analysis.answer_summary, language.value)
         if not reflection_analysis:
             return False
+        
         self.summary_entry = ReflectionEntry(
             question=analysis.main_question,
             answer=analysis.answer_summary,
@@ -265,11 +272,7 @@ class JournalManager:
         self.insights = analysis.insights
         return True
 
-    def save_journal_entry(self) -> bool:
-        if not self._generate_journal_entry():
-            logging.error("Journal entry not generated")
-            return False
-        
+    def save_journal_entry(self) -> bool:        
         # Get the current date and strings
         now = datetime.now()
         month_str = now.strftime("%Y_%m")
@@ -286,6 +289,11 @@ class JournalManager:
 
         # Save the reflections
         self.reflection_manager.save_reflections(f"{reflections_month_dir}/{day_str}_{self.uuid_str}.jsonl")
+
+        # Generate the journal entry
+        if not self._generate_journal_entry():
+            logging.error("Journal entry not generated")
+            return False
 
         # Save the insights
         if self.insights:

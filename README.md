@@ -14,6 +14,12 @@ This repository is an app to a systematic approach to understanding life, making
    - **Goal Definition**: Create and review goals based on what is important for you based on the insights.
    - **Task Generation**: Convert goals into actionable tasks.
 
+3. **Accountability System**
+   - **Definition**: Define your goals and tasks based on what is important for you.
+   - **Accountability**: Periodically review your goals and tasks and check if you are making progress.
+   - **Feedback**: Get feedback on your progress from the LLM.
+
+
 ## Technical Stack
 
 - **App**: Streamlit for interactive interfaces

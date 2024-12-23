@@ -1,5 +1,5 @@
 import streamlit as st
-from managers import QuestionManager, ReflectionManager, JournalManager
+from src.managers import QuestionManager, ReflectionManager, JournalManager
 
 
 @st.cache_resource

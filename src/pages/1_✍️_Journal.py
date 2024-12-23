@@ -1,5 +1,5 @@
 import streamlit as st
-from src.managers import QuestionManager, ReflectionManager, JournalManager
+from managers import QuestionManager, ReflectionManager, JournalManager
 
 
 @st.cache_resource
@@ -236,7 +236,6 @@ def main():
     metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
     metric_col2.metric(label="Total Entries", value=total_entries)
 
-
+    
 if __name__ == "__main__":
-    st.set_page_config(page_icon="📔", page_title="Reflection Journal")
     main()

@@ -36,15 +36,15 @@ jobs:
       - name: Build and Push Container
         id: 'build'
         run: |
-          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod:latest" .
-          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod" --all-tags
+          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod:latest" .
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod" --all-tags
 
       - name: Deploy to Cloud Run
         id: 'deploy'
         run: |
-          gcloud run deploy reflexion-journal \
+          gcloud run deploy reflection-journal \
           --region ${{ secrets.LOCATION }} \
-          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflexion-journal/prod" \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod" \
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=1 \

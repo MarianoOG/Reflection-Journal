@@ -5,9 +5,7 @@ from typing import Optional, List, Dict, Union
 from datetime import datetime
 from uuid import uuid4
 from llm import analyze_reflection, analyze_report
-from models import Languages
-from models import QuestionEntry, ReflectionEntry, Insight
-from config import DirectoryInitializer
+from models import Languages, QuestionEntry, ReflectionEntry, Insight
 import logging
 
 
@@ -15,7 +13,7 @@ class QuestionManager:
     file_path: str
     question_entries: Dict[str, QuestionEntry]
 
-    def __init__(self, file_path: str = "../data/questions.jsonl"):
+    def __init__(self, file_path: str):
         self.file_path = file_path
         self.question_entries = {}
         self._load_questions()
@@ -70,10 +68,12 @@ class QuestionManager:
 
 
 class ReflectionManager:
+    user_id: str
     original_entry_id: Optional[str]
     reflection_entries: Dict[str, ReflectionEntry]
 
-    def __init__(self):
+    def __init__(self, user_id: str):
+        self.user_id = user_id
         self.original_entry_id = None
         self.reflection_entries = {}
 
@@ -95,11 +95,6 @@ class ReflectionManager:
                     logging.error(e)
                     continue
                 self.upsert_reflection(current_entry)
-
-    def save_reflections(self, file_path: str) -> None:
-        with open(file_path, "w+", encoding="utf-8") as f:
-            for entry in self.reflection_entries.values():
-                f.write(entry.model_dump_json() + "\n")
 
     def get_reflection_by_id(self, reflection_id: str) -> Optional[ReflectionEntry]:
         return self.reflection_entries.get(reflection_id)
@@ -272,40 +267,16 @@ class JournalManager:
         self.insights = analysis.insights
         return True
 
-    def save_journal_entry(self) -> bool:        
-        # Get the current date and strings
-        now = datetime.now()
-        month_str = now.strftime("%Y_%m")
-        day_str = now.strftime("%Y_%m_%d")
-
-        # Create directories
-        directory_initializer = DirectoryInitializer()
-        reflections_month_dir = f"{directory_initializer.reflections_dir}/{month_str}"
-        reflection_summaries_month_dir = f"{directory_initializer.reflection_summaries_dir}/{month_str}"
-        reflection_insights_month_dir = f"{directory_initializer.reflection_insights_dir}/{month_str}"
-        directory_initializer.ensure_dir(reflections_month_dir)
-        directory_initializer.ensure_dir(reflection_summaries_month_dir)
-        directory_initializer.ensure_dir(reflection_insights_month_dir)
-
-        # Save the reflections
-        self.reflection_manager.save_reflections(f"{reflections_month_dir}/{day_str}_{self.uuid_str}.jsonl")
-
-        # Generate the journal entry
+    def save_journal_entry(self, directory_path: str) -> bool:
         if not self._generate_journal_entry():
             logging.error("Journal entry not generated")
             return False
-
-        # Save the insights
-        if self.insights:
-            with open(f"{reflection_insights_month_dir}/{day_str}_{self.uuid_str}.jsonl", "w+", encoding="utf-8") as f:
-                for insight in self.insights:
-                    f.write(insight.model_dump_json() + "\n")
-
-        # Save the summary
-        if self.summary_entry:
-            with open(f"{reflection_summaries_month_dir}/{day_str}_{self.uuid_str}.json", "w+", encoding="utf-8") as f:
-                f.write(self.summary_entry.model_dump_json(indent=2))
         
+        now = datetime.now()
+        # TODO: develop in typeDB, Save reflections
+        # TODO: develop in typeDB, Save summary
+        # TODO: develop in typeDB, Save insights
+        # TODO: save tags
         return True
 
 # %%

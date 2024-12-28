@@ -5,9 +5,7 @@ from config import Settings
 import logging
 
 settings = Settings()
-client = OpenAI(
-    api_key=settings.OPENAI_API_KEY,
-)
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def analyze_reflection(question: str, answer: str, language: Literal["en", "es"]) -> Optional[ReflectionAnalysis]:

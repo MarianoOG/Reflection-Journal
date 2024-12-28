@@ -267,7 +267,7 @@ class JournalManager:
         self.insights = analysis.insights
         return True
 
-    def save_journal_entry(self, directory_path: str) -> bool:
+    def save_journal_entry(self) -> bool:
         if not self._generate_journal_entry():
             logging.error("Journal entry not generated")
             return False

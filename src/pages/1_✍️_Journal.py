@@ -4,17 +4,18 @@ from managers import QuestionManager, ReflectionManager, JournalManager
 
 @st.cache_resource
 def get_question_manager() -> QuestionManager:
-    return QuestionManager()
+    file_path = "data/questions.jsonl"
+    return QuestionManager(file_path)
 
 
 @st.cache_resource
-def get_reflection_manager() -> ReflectionManager:
-    return ReflectionManager()
+def get_reflection_manager(user_id: str) -> ReflectionManager:
+    return ReflectionManager(user_id)
 
 
 @st.cache_resource
-def get_journal_manager() -> JournalManager:
-    reflection_manager = get_reflection_manager()
+def get_journal_manager(user_id: str) -> JournalManager:
+    reflection_manager = get_reflection_manager(user_id)
     return JournalManager(reflection_manager)
 
 
@@ -28,7 +29,7 @@ def analyze_reflection(entry_id: str):
     if not answer:
         return
     
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error(f"Entry {entry_id} not found")
@@ -43,13 +44,13 @@ def analyze_reflection(entry_id: str):
 
 
 def ignore_entry(entry_id: str):
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     reflection_manager.delete_reflection_by_id(entry_id)
     return
 
 
 def save_for_later(entry_id: str):
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     question_manager = get_question_manager()
     entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
@@ -66,7 +67,7 @@ def render_entry(entry_id: str, is_child: bool = False):
         st.divider()
 
     # Get the entry
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error(f"Entry {entry_id} not found")
@@ -134,7 +135,7 @@ def render_entry(entry_id: str, is_child: bool = False):
 
 
 def get_unanswered_reflection_entry():
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     entry = reflection_manager.get_unanswered_reflection_entry()
     if entry:
         set_current_entry(entry.id)
@@ -146,9 +147,9 @@ def get_unanswered_reflection_entry():
 
 def get_final_analysis():
     with st.spinner("All entries analyzed. Generating insights..."):
-        reflection_manager = get_reflection_manager()
+        reflection_manager = get_reflection_manager(st.session_state.user_id)
         reflection_manager.delete_all_reflections_without_answer()
-        journal_manager = get_journal_manager()
+        journal_manager = get_journal_manager(st.session_state.user_id)
         report_analysis = journal_manager.save_journal_entry()
     if report_analysis:
         render_final_analysis()
@@ -165,7 +166,7 @@ def get_final_analysis():
 
 
 def render_final_analysis():
-    journal_manager = get_journal_manager()
+    journal_manager = get_journal_manager(st.session_state.user_id)
     summary_entry = journal_manager.get_summary_entry()
     if summary_entry:
         st.subheader(summary_entry.question)
@@ -181,7 +182,7 @@ def render_final_analysis():
 
 def main():
     # Get the journal manager and stats
-    reflection_manager = get_reflection_manager()
+    reflection_manager = get_reflection_manager(st.session_state.user_id)
     analyzed_entries, total_entries = reflection_manager.get_statistics()
 
     # Display the sidebar
@@ -238,4 +239,5 @@ def main():
 
     
 if __name__ == "__main__":
+    st.session_state.user_id = "default"
     main()

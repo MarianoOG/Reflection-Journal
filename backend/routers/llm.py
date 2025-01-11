@@ -1,6 +1,6 @@
 from typing import Optional, Literal
 from openai import OpenAI
-from models import ReflectionAnalysis, ReportAnalysis
+from backend.models import ReflectionAnalysis, ReportAnalysis
 from config import Settings
 import logging
 

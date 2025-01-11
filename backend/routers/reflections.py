@@ -1,71 +1,9 @@
-# %%
 import json
 import random
-from typing import Optional, List, Dict, Union
-from datetime import datetime
-from uuid import uuid4
-from llm import analyze_reflection, analyze_report
-from models import Languages, QuestionEntry, ReflectionEntry, Insight
 import logging
-
-
-class QuestionManager:
-    file_path: str
-    question_entries: Dict[str, QuestionEntry]
-
-    def __init__(self, file_path: str):
-        self.file_path = file_path
-        self.question_entries = {}
-        self._load_questions()
-
-    def _add_question(self, question_entry: QuestionEntry) -> bool:
-        if question_entry.question not in self.question_entries:
-            self.question_entries[question_entry.question] = question_entry
-            return True
-        return False
-
-    def _load_questions(self) -> None:
-        try:
-            with open(self.file_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        data = json.loads(line)
-                        current_question = QuestionEntry(**data)
-                    except Exception as e:
-                        logging.error(e)
-                        continue
-                    self._add_question(current_question)
-        except FileNotFoundError:
-            logging.warning(f"Questions file not found at {self.file_path}")
-        except Exception as e:
-            logging.error(f"Error loading questions: {e}")
-
-    def _save_questions(self) -> None:
-        try:
-            with open(self.file_path, "w+", encoding="utf-8") as f:
-                for question in self.question_entries.values():
-                    f.write(question.model_dump_json() + "\n")
-        except Exception as e:
-            logging.error(f"Error saving questions: {e}")
-
-    def get_random_question_entry(self) -> QuestionEntry:
-        weights = [question.weight for question in self.question_entries.values()]
-        return random.choices(list(self.question_entries.values()), weights=weights, k=1)[0]
-
-    def add_question_entry(self, question_entry: QuestionEntry) -> bool:
-        question_entry = QuestionEntry(**question_entry.model_dump())
-        if self._add_question(question_entry):
-            self._save_questions()
-            return True
-        return False
-    
-    def delete_question(self, question: str) -> bool:
-        if question in self.question_entries:
-            del self.question_entries[question]
-            self._save_questions()
-            return True
-        return False
-
+from typing import Optional, Dict, List, Union
+from backend.models import ReflectionEntry, QuestionEntry, Languages
+from backend.routers.llm import analyze_reflection
 
 class ReflectionManager:
     user_id: str
@@ -118,10 +56,9 @@ class ReflectionManager:
             return random.choice(unanswered_entries)
         return None
     
-    def get_language(self) -> Languages:
-        for entry in self.reflection_entries.values():
-            if entry.language:
-                return entry.language
+    def get_language_by_id(self, reflection_id: str) -> Languages:
+        if reflection_id in self.reflection_entries:
+            return self.reflection_entries[reflection_id].language
         return Languages.EN
 
     def delete_reflection_by_id(self, reflection_id: str) -> bool:
@@ -150,11 +87,6 @@ class ReflectionManager:
 
             return True
         return False
-
-    def delete_all_reflections_without_answer(self) -> None:
-        ids_without_answer = [reflection.id for reflection in self.reflection_entries.values() if not reflection.answer]
-        for id in ids_without_answer:
-            self.delete_reflection_by_id(id)
 
     def analyze_reflection_by_id(self, reflection_id: str) -> bool:
         # Get the entry and check if it exists
@@ -219,64 +151,3 @@ class ReflectionManager:
     def get_statistics(self) -> tuple[int, int]:
         analyzed_entries = len([entry for entry in self.reflection_entries.values() if entry.themes])
         return analyzed_entries, len(self.reflection_entries)
-
-
-class JournalManager:
-    uuid_str: str
-    reflection_manager: ReflectionManager
-    summary_entry: Optional[ReflectionEntry]
-    insights: List[Insight]
-
-    def __init__(self, reflection_manager: ReflectionManager):
-        self.uuid_str = uuid4().hex
-        self.reflection_manager = reflection_manager
-        self.insights = []
-        self.summary_entry = None
-    
-    def get_summary_entry(self) -> Optional[ReflectionEntry]:
-        return self.summary_entry
-    
-    def get_insights(self) -> List[Insight]:
-        return self.insights
-
-    def _generate_journal_entry(self) -> bool:
-        # Get the report
-        report = self.reflection_manager.get_report()
-        if not report:
-            return False
-        
-        # Analyze the report
-        language = self.reflection_manager.get_language()
-        analysis = analyze_report(report, language.value)
-        if not analysis:
-            return False
-        
-        # Create the summary entry and insights
-        reflection_analysis = analyze_reflection(analysis.main_question, analysis.answer_summary, language.value)
-        if not reflection_analysis:
-            return False
-        
-        self.summary_entry = ReflectionEntry(
-            question=analysis.main_question,
-            answer=analysis.answer_summary,
-            language=language,
-            themes=reflection_analysis.themes,
-            sentiment=reflection_analysis.sentiment,
-            context='\n'.join([belief.belief_type + ': ' + belief.statement for belief in reflection_analysis.beliefs]),
-        )
-        self.insights = analysis.insights
-        return True
-
-    def save_journal_entry(self) -> bool:
-        if not self._generate_journal_entry():
-            logging.error("Journal entry not generated")
-            return False
-        
-        now = datetime.now()
-        # TODO: develop in typeDB, Save reflections
-        # TODO: develop in typeDB, Save summary
-        # TODO: develop in typeDB, Save insights
-        # TODO: save tags
-        return True
-
-# %%

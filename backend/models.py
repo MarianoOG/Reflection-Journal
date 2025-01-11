@@ -9,25 +9,45 @@ from enum import Enum
 class Languages(Enum):
     EN = "en"
     ES = "es"
+    
 
-class QuestionEntry(BaseModel):
+class ReflectionEntry(BaseModel):
+    # Metadata
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     created_at: datetime = Field(default_factory=datetime.now)
     language: Languages = Field(default=Languages.EN)
-    weight: float = Field(ge=0, le=1, default=0.5)
-    question: str = Field(min_length=1)
-    context_type: Literal["Original", "Assumption", "Blind Spot", "Contradiction"] = Field(default="Original")
-    context: Optional[str] = Field(default=None)
+    
+    # Q&A
+    question: str = Field(min_length=1, max_length=200)
+    answer: Optional[str] = Field(default=None, max_length=2000)
 
-class ReflectionEntry(QuestionEntry):
-    # Answer
-    answer: Optional[str] = Field(default=None)
+    # Context
+    context_type: Literal["Original", "Assumption", "Blind Spot", "Contradiction"] = Field(default="Original")
+    context: Optional[str] = Field(default=None, max_length=500)
+
     # Analysis
     themes: List[str] = Field(default_factory=list)
     sentiment: Literal["Positive", "Slightly Positive", "Neutral", "Slightly Negative", "Negative"] = Field(default="Neutral")
+    
     # Tree structure
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    is_summary: bool = Field(default=False)
     parent_id: Optional[str] = Field(default=None)
-    children_ids: List[str] = Field(default_factory=list)
+
+
+class TaskEntry(BaseModel):
+    # Metadata
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    created_at: datetime = Field(default_factory=datetime.now)
+    language: Languages = Field(default=Languages.EN)
+
+    # Task and importance
+    task: str = Field(min_length=1, max_length=200)
+    importance: Literal["High", "Medium", "Low"] = Field(default="Medium")
+
+    # Tree structure
+    is_done: bool = Field(default=False)
+    parent_id: Optional[str] = Field(default=None)
+    reflection_entry_id: Optional[str] = Field(default=None)
 
 # LLM Models
 
@@ -41,7 +61,7 @@ class ReflectionAnalysis(BaseModel):
     sentiment: Literal["Positive", "Slightly Positive", "Neutral", "Slightly Negative", "Negative"]
     beliefs: List[Belief]
 
-class Insight(BaseModel):
+class Action(BaseModel):
     insight: str
     goal: str
     tasks: List[str]
@@ -50,4 +70,4 @@ class Insight(BaseModel):
 class ReportAnalysis(BaseModel):
     main_question: str
     answer_summary: str
-    insights: List[Insight]
+    actions: List[Action]

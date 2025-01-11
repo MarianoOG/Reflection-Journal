@@ -6,5 +6,4 @@ load_dotenv()
 
 # Settings
 class Settings:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")

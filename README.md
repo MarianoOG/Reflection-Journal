@@ -1,30 +1,30 @@
-# Reflection Journal
+# AI Assisted Journal - Personal Growth App
 
 This repository is an app to a systematic approach to understanding life, making better decisions, and continuously improving. It represents my journey of personal growth and philosophical exploration.
 
 ## Core Components
 
-1. **Self-Reflection Engine**
-   - **Reflections**: Capture thoughts based on questions that you create.
-   - **Analize your thoughts**: LLM-assisted analysis of your reflexion entries.
-   - **Challenge Questions**: LLM-assisted questioning of your assumptions, blind-spots and contradictions.
-
+1. **Journal**
+   - **Thoughts**: Capture thoughts based on questions that you create and challenge your assumptions, blind-spots and contradictions.
+   - **Memories**: Free text entries about anecdotes, experiences and things you're thankful for and extract insights from them.
+   - **Learning**: Capture your learnings from books, articles, videos, and podcasts and see how they connect to your life.
+   
 2. **Review System**
-   - **Insights**: LLM-assisted analysis of reflection entries to identify patterns.
-   - **Goal Definition**: Create and review goals based on what is important for you based on the insights.
-   - **Task Generation**: Convert goals into actionable tasks.
-
-3. **Accountability System**
-   - **Definition**: Define your goals and tasks based on what is important for you.
-   - **Accountability**: Periodically review your goals and tasks and check if you are making progress.
-   - **Feedback**: Get feedback on your progress from the LLM.
-
+   - **Challenge Beliefs**: LLM-assisted questioning of your assumptions, blind-spots and contradictions.
+   - **Generate Insights**: Generate unique perspectives on your thoughts based on your entries.
+   - **Summarize and Consolidate**: Come back to a compacted version of your entries that you can consult and expand on.
+   
+3. **Visualization and Analysis**
+   - **Mood Tracking**: Track your emotional state over time with data visualization.
+   - **Resource Library**: Curated content on personal development and reflection techniques.
+   - **Integration with Other Tools**: Connect with meditation apps, fitness trackers, etc.
 
 ## Technical Stack
 
-- **App**: Streamlit for interactive interfaces
+- **Backend**: FastAPI for API
+- **Frontend**: Streamlit for interactive interfaces
 - **Infrastructure**: GCP Cloud Run for containerized services
-- **Storage**: File System for Reflexion Entries and Questions
+- **Storage**: SQLite for Reflexion Entries and Questions stored in GCP bucket
 - **Third Party APIs**: OpenAI for LLM integration
 
 ## Getting Started
@@ -32,29 +32,38 @@ This repository is an app to a systematic approach to understanding life, making
 1. **Prerequisites**
    - OpenAI API key
    - Bucket in GCP
+   - GCP credentials
+
+2. **Configuration**
+
+You first need to create a [`.env`](.env) file with the following variables:
+```
+OPENAI_API_KEY=your_openai_key
+BUCKET_NAME=your_google_cloud_service_bucket
+DATABASE_URL=your_sqlite_database_url
+```
 
 3. **Local Development**
+
+   You can run the services locally using the following commands:
    ```bash
    # Install dependencies
-   cd src && pip install -r requirements.txt
+   pip install -r backend/requirements.txt -r frontend/requirements.txt
 
    # Run services
-   cd ../src
-   streamlit run main.py --server.port 8080
+   uvicorn backend/fastapi_app:app --reload --port 8000
+   streamlit run frontend/main.py --server.port 8080
+   ```
+   
+   You can also use docker compose to run the services
+   ```bash
+   docker compose up --build
    ```
 
 4. **Deployment**
    - Automated deployment is configured via GitHub Actions
    - Workflow configuration is in [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
    - Requires GCP credentials configured as repository secrets
-
-## Configuration
-
-Create a [`.env`](.env) file with the following:
-```
-OPENAI_API_KEY=your_openai_key
-BUCKET_NAME=your_google_cloud_service_bucket
-```
 
 ## Contributing
 

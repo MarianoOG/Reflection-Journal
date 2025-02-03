@@ -1,7 +1,5 @@
 import json
-import random
 import logging
-from typing import Dict
 
 
 class QuestionManager:

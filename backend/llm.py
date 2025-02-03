@@ -1,14 +1,39 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, List
+from pydantic import BaseModel
 from openai import OpenAI
-from backend.models import ReflectionAnalysis, ReportAnalysis
 from config import Settings
 import logging
 
 settings = Settings()
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
+####################
+#    LLM Models    #
+####################
 
-def analyze_reflection(question: str, answer: str, language: Literal["en", "es"]) -> Optional[ReflectionAnalysis]:
+class LLMBelief(BaseModel):
+    belief_type: Literal["Assumption", "Blind Spot", "Contradiction"]
+    statement: str
+    challenge_question: str
+
+class LLMEntryAnalysis(BaseModel):
+    themes: List[str]
+    sentiment: Literal["Positive", "Slightly Positive", "Neutral", "Slightly Negative", "Negative"]
+    beliefs: List[LLMBelief]
+
+class LLMComprehensiveAnalysis(BaseModel):
+    themes: List[str]
+    main_question: str
+    answer_summary: str
+    insights: List[str]
+
+
+####################
+#   LLM Functions  #
+####################
+
+
+def analyze_reflection(reflection: Reflection) -> Optional[LLMEntryAnalysis]:
     # Instructions for the LLM
     instructions = {
         "en": """Extract information from the reflection and provide a detailed analysis.
@@ -28,17 +53,17 @@ def analyze_reflection(question: str, answer: str, language: Literal["en", "es"]
                 Asegúrate de que todo el análisis esté en español."""
     }
     content = {
-        "en": f"Question: {question}\nAnswer: {answer}\n",
-        "es": f"Pregunta: {question}\nRespuesta: {answer}\n"
+        "en": f"Question: {reflection.question}\nAnswer: {reflection.answer}\n",
+        "es": f"Pregunta: {reflection.question}\nRespuesta: {reflection.answer}\n"
     }
     try:
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": instructions.get(language, instructions["en"])},
-                {"role": "user", "content": content.get(language, content["en"])},
+                {"role": "system", "content": instructions.get(reflection.language.value, instructions["en"])},
+                {"role": "user", "content": content.get(reflection.language.value, content["en"])},
             ],
-            response_format=ReflectionAnalysis,
+            response_format=LLMEntryAnalysis,
             temperature=0.0,
             max_tokens=2000
         )
@@ -48,7 +73,7 @@ def analyze_reflection(question: str, answer: str, language: Literal["en", "es"]
     return completion.choices[0].message.parsed
 
 
-def analyze_report(report: str, language: Literal["en", "es"]) -> Optional[ReportAnalysis]:
+def analyze_report(report: str, language: Languages) -> Optional[LLMComprehensiveAnalysis]:
     instructions = {
         "en": """You will analyze a report of questions and answers from a reflection journal.
                 The main question will be the question that the report is related to.
@@ -70,10 +95,10 @@ def analyze_report(report: str, language: Literal["en", "es"]) -> Optional[Repor
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": instructions.get(language, instructions["en"])},
+                {"role": "system", "content": instructions.get(language.value, instructions["en"])},
                 {"role": "user", "content": report},
             ],
-            response_format=ReportAnalysis,
+            response_format=LLMComprehensiveAnalysis,
             temperature=0.0,
             max_tokens=5000
         )

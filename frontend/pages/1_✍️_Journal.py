@@ -1,10 +1,8 @@
 import streamlit as st
-from managers import JournalManager
 
 @st.cache_resource
-def get_journal_manager(user_id: str, language: str) -> JournalManager:
-    return JournalManager(user_id, language)
-
+def get_journal_manager(user_id: str):
+    return None
 
 def set_current_entry(entry_id: str):
     st.session_state.current_entry_id = entry_id
@@ -16,7 +14,10 @@ def analyze_reflection(entry_id: str):
     if not answer:
         return
     
-    journal_manager = get_journal_manager(st.session_state.user_id, st.session_state.language)
+    journal_manager = get_journal_manager(st.session_state.user_id)
+    if not journal_manager:
+        st.error("Journal manager not found")
+        return
     entry = journal_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error(f"Entry {entry_id} not found")
@@ -32,12 +33,18 @@ def analyze_reflection(entry_id: str):
 
 def ignore_entry(entry_id: str):
     reflection_manager = get_journal_manager(st.session_state.user_id)
+    if not reflection_manager:
+        st.error("Journal manager not found")
+        return
     reflection_manager.delete_reflection_by_id(entry_id)
     return
 
 
 def save_for_later(entry_id: str):
     reflection_manager = get_journal_manager(st.session_state.user_id)
+    if not reflection_manager:
+        st.error("Journal manager not found")
+        return
     entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error("Entry not found")
@@ -54,6 +61,9 @@ def render_entry(entry_id: str, is_child: bool = False):
 
     # Get the entry
     reflection_manager = get_journal_manager(st.session_state.user_id)
+    if not reflection_manager:
+        st.error("Journal manager not found")
+        return
     entry = reflection_manager.get_reflection_by_id(entry_id)
     if not entry:
         st.error(f"Entry {entry_id} not found")
@@ -122,6 +132,9 @@ def render_entry(entry_id: str, is_child: bool = False):
 
 def get_unanswered_reflection_entry():
     reflection_manager = get_journal_manager(st.session_state.user_id)
+    if not reflection_manager:
+        st.error("Journal manager not found")
+        return
     entry = reflection_manager.get_unanswered_reflection_entry()
     if entry:
         set_current_entry(entry.id)
@@ -151,11 +164,19 @@ def get_final_analysis():
 
 def render_final_analysis():
     journal_manager = get_journal_manager(st.session_state.user_id)
+    if not journal_manager:
+        st.error("Journal manager not found")
+        return
     summary_entry = journal_manager.get_summary_entry()
-    if summary_entry:
-        st.subheader(summary_entry.question)
-        st.write(summary_entry.answer)
+    if not summary_entry:
+        st.error("Summary entry not found")
+        return
+    st.subheader(summary_entry.question)
+    st.write(summary_entry.answer)
     insights = journal_manager.get_insights()
+    if not insights:
+        st.error("Insights not found")
+        return
     for insight in insights:
         st.subheader(insight.goal)
         st.write(insight.insight)
@@ -167,6 +188,9 @@ def render_final_analysis():
 def main():
     # Get the journal manager and stats
     reflection_manager = get_journal_manager(st.session_state.user_id)
+    if not reflection_manager:
+        st.error("Journal manager not found")
+        return
     analyzed_entries, total_entries = reflection_manager.get_statistics()
 
     # Display the sidebar

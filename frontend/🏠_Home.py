@@ -19,8 +19,7 @@ def main():
     st.title("📔 Reflection Journal")
 
     # Hero banners for navigation
-    col1, col2 = st.columns(2)
-    col3, col4 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         render_card('✍️', 'Journal', 'Record your thoughts and reflections')
@@ -29,9 +28,6 @@ def main():
         render_card('📊', 'Analytics', 'View insights from your journal entries')
 
     with col3:
-        render_card('🎯', 'Goals', 'Set and track your personal goals')
-
-    with col4:
         render_card('⚙️', 'Settings', 'Customize your journal experience')
 
 

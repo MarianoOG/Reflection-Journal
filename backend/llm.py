@@ -1,12 +1,11 @@
 from typing import Optional, List
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError, APIError
 from config import Settings
 from models import Reflection, LLMEntryAnalysis, LLMSummary, Languages
 import logging
 
 settings = Settings()
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
 
 ####################
 #   LLM Functions  #
@@ -40,20 +39,26 @@ def analyze_reflection(reflection: Reflection) -> Optional[LLMEntryAnalysis]:
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": instructions.get(reflection.language.value, instructions["en"])},
-                {"role": "user", "content": content.get(reflection.language.value, content["en"])},
+                {"role": "system", "content": instructions.get(str(reflection.language), instructions["en"])},
+                {"role": "user", "content": content.get(str(reflection.language), content["en"])},
             ],
             response_format=LLMEntryAnalysis,
             temperature=0.0,
             max_tokens=2000
         )
+    except APIConnectionError as e:
+        logging.error(f"Connection error when calling OpenAI API: {str(e)}")
+        return None
+    except APIError as e:
+        logging.error(f"OpenAI API error: {str(e)}")
+        return None
     except Exception as e:
-        logging.error(e)
+        logging.error(f"Unexpected error: {str(e)}")
         return None
     return completion.choices[0].message.parsed
 
 
-def summarize_reflections(reflections: List[Reflection], language: Languages) -> Optional[LLMSummary]:
+def summarize_reflections(reflections: List[Reflection]) -> Optional[LLMSummary]:
     instructions = {
         "en": """You will analyze a report of questions and answers from a reflection journal.
                 The main question will be the question that the report is related to.
@@ -80,14 +85,20 @@ def summarize_reflections(reflections: List[Reflection], language: Languages) ->
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": instructions.get(language.value, instructions["en"])},
+                {"role": "system", "content": instructions.get(str(reflections[0].language), instructions["en"])},
                 {"role": "user", "content": report},
             ],
             response_format=LLMSummary,
             temperature=0.0,
             max_tokens=1000
         )
+    except APIConnectionError as e:
+        logging.error(f"Connection error when calling OpenAI API: {str(e)}")
+        return None
+    except APIError as e:
+        logging.error(f"OpenAI API error: {str(e)}")
+        return None
     except Exception as e:
-        logging.error(e)
+        logging.error(f"Unexpected error: {str(e)}")
         return None
     return completion.choices[0].message.parsed

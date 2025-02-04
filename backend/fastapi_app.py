@@ -69,13 +69,13 @@ def get_theme_reflections(theme_id: str):
         ).all()
         
         # Get all reflections
-        reflections = []
+        reflections = dict()
         for relation in reflection_relations:
             reflection = session.get(Reflection, relation.reflection_id)
             if reflection:
-                reflections.append(reflection)
+                reflections[reflection.id] = reflection
         
-        return reflections
+        return list(reflections.values())
 
 @app.delete("/themes/{theme_id}")
 def delete_theme(theme_id: str):
@@ -121,8 +121,13 @@ def upsert_reflection(reflection: Reflection):
     with Session(database_engine) as session:
         existing_reflection = session.get(Reflection, reflection.id)
         if existing_reflection:
-            for key, value in reflection.model_dump(exclude_unset=True).items():
-                setattr(existing_reflection, key, value)
+            existing_reflection.parent_id = reflection.parent_id
+            existing_reflection.language = reflection.language
+            existing_reflection.type = reflection.type
+            existing_reflection.sentiment = reflection.sentiment
+            existing_reflection.context = reflection.context
+            existing_reflection.question = reflection.question
+            existing_reflection.answer = reflection.answer
         else:
             session.add(reflection)
         session.commit()
@@ -319,7 +324,7 @@ def create_user(user: User):
         session.refresh(user)
         
         # Load questions from the appropriate language file
-        language_file = f"./data/{user.prefered_language}.jsonl"
+        language_file = f"./data/{str(user.prefered_language)}.jsonl"
         try:
             with open(language_file, 'r', encoding='utf-8') as f:
                 questions = [json.loads(line) for line in f]
@@ -463,7 +468,7 @@ def delete_user(user_id: str):
         # Delete all reflections
         for reflection in user_reflections:
             session.delete(reflection)
-        
+
         # Delete the user
         session.delete(user)
         session.commit()

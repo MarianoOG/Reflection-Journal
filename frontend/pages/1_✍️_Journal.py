@@ -1,56 +1,61 @@
+import requests
 import streamlit as st
-
-@st.cache_resource
-def get_journal_manager(user_id: str):
-    return None
-
-def set_current_entry(entry_id: str):
-    st.session_state.current_entry_id = entry_id
-    return
-
 
 def analyze_reflection(entry_id: str):
     answer = st.session_state[f"answer_{entry_id}"].strip()
     if not answer:
         return
     
-    journal_manager = get_journal_manager(st.session_state.user_id)
-    if not journal_manager:
-        st.error("Journal manager not found")
-        return
-    entry = journal_manager.get_reflection_by_id(entry_id)
-    if not entry:
-        st.error(f"Entry {entry_id} not found")
+    # Get the reflection
+    response = requests.get(f"{st.session_state.backend_url}/reflections/{entry_id}")
+    if response.status_code != 200:
+        st.error("Failed to get reflection")
         return
     
-    entry.answer = answer
-    journal_manager.upsert_reflection(entry)
-    if not journal_manager.analyze_reflection_by_id(entry_id):
-        st.error(f"Analysis not generated for entry {entry_id}")
+    # Update the reflection with the answer
+    reflection = response.json()
+    reflection["answer"] = answer
+    response = requests.put(f"{st.session_state.backend_url}/reflections/", json=reflection)
+    if response.status_code != 200:
+        st.error("Failed to update reflection")
+        return
+    
+    # Analyze the reflection
+    response = requests.post(f"{st.session_state.backend_url}/reflections/{entry_id}/analyze")
+    if response.status_code != 200:
+        st.error("Analysis not generated")
+        return
+    
     set_current_entry(entry_id)
     return
 
 
 def ignore_entry(entry_id: str):
-    reflection_manager = get_journal_manager(st.session_state.user_id)
-    if not reflection_manager:
-        st.error("Journal manager not found")
-        return
-    reflection_manager.delete_reflection_by_id(entry_id)
+    response = requests.delete(f"{st.session_state.backend_url}/reflections/{entry_id}")
+    if response.status_code != 200:
+        st.error("Failed to delete reflection")
     return
 
 
 def save_for_later(entry_id: str):
-    reflection_manager = get_journal_manager(st.session_state.user_id)
-    if not reflection_manager:
-        st.error("Journal manager not found")
+    # Get the reflection
+    response = requests.get(f"{st.session_state.backend_url}/reflections/{entry_id}")
+    if response.status_code != 200:
+        st.error("Failed to get reflection")
         return
-    entry = reflection_manager.get_reflection_by_id(entry_id)
-    if not entry:
-        st.error("Entry not found")
+    
+    # Create a new reflection with the same data
+    reflection = response.json()
+    reflection.pop("id", None)  # Remove ID to create a new one
+    response = requests.put(f"{st.session_state.backend_url}/reflections/", json=reflection)
+    if response.status_code != 200:
+        st.error("Failed to save reflection for later")
         return
-    reflection_manager.add_question_entry(entry)
-    reflection_manager.delete_reflection_by_id(entry_id)
+    
+    # Delete the original reflection
+    response = requests.delete(f"{st.session_state.backend_url}/reflections/{entry_id}")
+    if response.status_code != 200:
+        st.error("Failed to delete original reflection")
     return
 
 
@@ -60,138 +65,120 @@ def render_entry(entry_id: str, is_child: bool = False):
         st.divider()
 
     # Get the entry
-    reflection_manager = get_journal_manager(st.session_state.user_id)
-    if not reflection_manager:
-        st.error("Journal manager not found")
+    response = requests.get(f"{st.session_state.backend_url}/reflections/{entry_id}")
+    if response.status_code != 200:
+        st.error("Failed to get reflection")
         return
-    entry = reflection_manager.get_reflection_by_id(entry_id)
-    if not entry:
-        st.error(f"Entry {entry_id} not found")
-        return
+    entry = response.json()
 
     # Check if the entry is the current entry and has a parent
-    if st.session_state.current_entry_id == entry.id and entry.parent_id:
+    if st.session_state.current_entry_id == entry["id"] and entry["parent_id"]:
         back_col, _ = st.columns([1, 5])
         back_col.button("⬅️ Go back", 
-                        key=f"back_{entry.id}", 
+                        key=f"back_{entry['id']}", 
                         on_click=set_current_entry, 
-                        args=(entry.parent_id,))
+                        args=(entry["parent_id"],))
 
     # Display the question
     if is_child:
-        st.subheader(entry.question)
+        st.subheader(entry["question"])
     else:
-        st.header(entry.question)
+        st.header(entry["question"])
 
     # Display the context if available
-    if entry.context:
-        st.caption(f"**{entry.context_type}**: {entry.context}")
+    if entry["context"]:
+        st.caption(f"**{entry['type']}**: {entry['context']}")
+
+    # Get themes for the entry
+    themes_response = requests.get(f"{st.session_state.backend_url}/reflections/{entry_id}/themes")
+    themes = themes_response.json() if themes_response.status_code == 200 else []
+    theme_names = [theme["name"] for theme in themes]
 
     # Display the answer and the sentiment and themes if available
-    if entry.themes:
-        st.write(entry.answer)
+    if theme_names:
+        st.write(entry["answer"])
         col1, col2 = st.columns([1, 4])
-        col1.pills("Sentiment", [entry.sentiment], key=f"sentiment_{entry.id}", disabled=True)
-        col2.pills("Themes", entry.themes, key=f"themes_{entry.id}", disabled=True) 
-        if st.session_state.current_entry_id != entry.id and entry.children_ids:
+        col1.pills("Sentiment", [entry["sentiment"]], key=f"sentiment_{entry['id']}", disabled=True)
+        col2.pills("Themes", theme_names, key=f"themes_{entry['id']}", disabled=True) 
+        
+        # Get children
+        children_response = requests.get(f"{st.session_state.backend_url}/reflections/{entry_id}/children")
+        children = children_response.json() if children_response.status_code == 200 else []
+        
+        if st.session_state.current_entry_id != entry["id"] and children:
             st.button("Expand", 
-                       key=f"expand_{entry.id}", 
+                       key=f"expand_{entry['id']}", 
                        on_click=set_current_entry, 
-                       args=(entry.id,),
+                       args=(entry["id"],),
                        use_container_width=True)
         return
     
     # Display the answer text area
-    current_answer = entry.answer if entry.answer else ""
+    current_answer = entry["answer"] if entry["answer"] else ""
     current_answer = st.text_area("Reflection", 
                                   value=current_answer, 
-                                  key=f"answer_{entry.id}",
+                                  key=f"answer_{entry['id']}",
                                   height=250)
     
     # Display the buttons
     col_ignore, col_save_for_later, col_analyze = st.columns([1, 1, 1])
     col_ignore.button("Ignore", 
-                      key=f"ignore_{entry.id}", 
+                      key=f"ignore_{entry['id']}", 
                       on_click=ignore_entry, 
-                      args=(entry.id,),
+                      args=(entry["id"],),
                       use_container_width=True,
-                      disabled= entry.context_type == "Original")
+                      disabled=entry["type"] == "Original")
     col_save_for_later.button("Save for later", 
-                              key=f"save_for_later_{entry.id}", 
+                              key=f"save_for_later_{entry['id']}", 
                               on_click=save_for_later,
-                              args=(entry.id,),
+                              args=(entry["id"],),
                               use_container_width=True)
     col_analyze.button("Analyze", 
-                        key=f"analyze_{entry.id}", 
+                        key=f"analyze_{entry['id']}", 
                         on_click=analyze_reflection,
-                        args=(entry.id,),
+                        args=(entry["id"],),
                         use_container_width=True,
                         type="primary",
                         disabled=not current_answer)
 
 
 def get_unanswered_reflection_entry():
-    reflection_manager = get_journal_manager(st.session_state.user_id)
-    if not reflection_manager:
-        st.error("Journal manager not found")
-        return
-    entry = reflection_manager.get_unanswered_reflection_entry()
-    if entry:
-        set_current_entry(entry.id)
+    response = requests.get(f"{st.session_state.backend_url}/reflections/random/unanswered/{st.session_state.user_id}")
+    if response.status_code == 200:
+        entry = response.json()
+        set_current_entry(entry["id"])
     else:
         st.info("All entries have been answered")
-        get_final_analysis()
     return
 
 
-def get_final_analysis():
-    with st.spinner("All entries analyzed. Generating insights..."):
-        journal_manager = get_journal_manager(st.session_state.user_id, st.session_state.language)
-        report_analysis = journal_manager.save_journal_entry()
-    if report_analysis:
-        render_final_analysis()
-        
-        if not journal_manager.original_entry_id:
-            return
-        original_entry = journal_manager.get_reflection_by_id(journal_manager.original_entry_id)
-        if original_entry:
-            question_manager = journal_manager()
-            question_manager.delete_question(original_entry.question)
-    else:
-        st.error("Final analysis not generated")
-    return
-
-
-def render_final_analysis():
-    journal_manager = get_journal_manager(st.session_state.user_id)
-    if not journal_manager:
-        st.error("Journal manager not found")
-        return
-    summary_entry = journal_manager.get_summary_entry()
-    if not summary_entry:
-        st.error("Summary entry not found")
-        return
-    st.subheader(summary_entry.question)
-    st.write(summary_entry.answer)
-    insights = journal_manager.get_insights()
-    if not insights:
-        st.error("Insights not found")
-        return
-    for insight in insights:
-        st.subheader(insight.goal)
-        st.write(insight.insight)
-        for index, task in enumerate(insight.tasks):
-            st.write(f"{index + 1}. {task}")
-    return
+def set_current_entry(entry_id: str):
+    st.session_state.current_entry_id = entry_id
 
 
 def main():
-    # Get the journal manager and stats
-    reflection_manager = get_journal_manager(st.session_state.user_id)
-    if not reflection_manager:
-        st.error("Journal manager not found")
+    # Get user stats
+    response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/stats")
+    if response.status_code == 404:
+        with st.spinner("Creating user..."):
+            response = requests.post(f"{st.session_state.backend_url}/users/", 
+                                     json={"id": st.session_state.user_id, 
+                                           "name": st.session_state.user_name, 
+                                           "email": st.session_state.user_email,
+                                           "prefered_language": st.session_state.user_language})
+            if response.status_code != 200:
+                st.error("Failed to create user")
+                return
+    elif response.status_code != 200:
+        st.error("Failed to get user stats")
         return
-    analyzed_entries, total_entries = reflection_manager.get_statistics()
+    stats = response.json()
+
+    analyzed_entries = 0
+    total_entries = 0
+    if "answered_entries" in stats and "total_entries" in stats:
+        analyzed_entries = stats["answered_entries"]
+        total_entries = stats["total_entries"]
 
     # Display the sidebar
     st.sidebar.title("Reflection Journal")
@@ -201,51 +188,57 @@ def main():
                       on_click=get_unanswered_reflection_entry,
                       use_container_width=True,
                       type="primary")
-    st.sidebar.button("Skip to final analysis",
-                      on_click=get_final_analysis,
-                      use_container_width=True,
-                      disabled=analyzed_entries == 0)
 
     # Generate insights
     if analyzed_entries == total_entries and analyzed_entries > 0:
-        get_final_analysis()
-        analyzed_entries, total_entries = reflection_manager.get_statistics()
-        metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
-        metric_col2.metric(label="Total Entries", value=total_entries)
-        st.sidebar.info(f"{analyzed_entries} entries saved")
-        render_final_analysis()
+        st.info("All entries analyzed.")
         return
 
     # Initialize the reflection entries
     if total_entries == 0:
-        journal_manager = get_journal_manager(st.session_state.user_id, st.session_state.language)
-        question = journal_manager.get_random_question()
-        original_entry_id = journal_manager.upsert_reflection(question)
-        set_current_entry(original_entry_id)
+        # Get an unanswered reflection
+        response = requests.get(f"{st.session_state.backend_url}/reflections/random/unanswered/{st.session_state.user_id}")
+        if response.status_code == 200:
+            entry = response.json()
+            set_current_entry(entry["id"])
 
     # Display the current entry
-    current_entry = reflection_manager.get_reflection_by_id(st.session_state.current_entry_id)
-    if not current_entry:
-        st.warning("Current entry not found, going back to original entry")
-        if reflection_manager.original_entry_id:
-            set_current_entry(reflection_manager.original_entry_id)
-            current_entry = reflection_manager.get_reflection_by_id(st.session_state.current_entry_id)
-        else:
-            st.error("Original entry not found")
-            st.stop()
-
-    # Render the current entry and its children
-    if current_entry:
-        render_entry(current_entry.id)
-        for child in current_entry.children_ids:
-            render_entry(child, is_child=True)
+    if "current_entry_id" in st.session_state:
+        response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
+        if response.status_code != 200:
+            st.warning("Current entry not found, going back to original entry")
+            # Get all reflections and find the first one
+            response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/reflections")
+            if response.status_code == 200:
+                reflections = response.json()
+                if reflections:
+                    set_current_entry(reflections[0]["id"])
+                    response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
+            if response.status_code != 200:
+                st.error("Failed to get reflection")
+                st.stop()
+        
+        current_entry = response.json()
+        render_entry(current_entry["id"])
+        
+        # Get and render children
+        children_response = requests.get(f"{st.session_state.backend_url}/reflections/{current_entry['id']}/children")
+        if children_response.status_code == 200:
+            children = children_response.json()
+            for child in children:
+                render_entry(child["id"], is_child=True)
 
     # Update and display the metrics
-    analyzed_entries, total_entries = reflection_manager.get_statistics()
-    metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
-    metric_col2.metric(label="Total Entries", value=total_entries)
+    response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/stats")
+    if response.status_code == 200:
+        stats = response.json()
+        analyzed_entries = stats["answered_entries"]
+        total_entries = stats["total_entries"]
+        metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
+        metric_col2.metric(label="Total Entries", value=total_entries)
 
-    
+
 if __name__ == "__main__":
-    st.session_state.user_id = "default"
+    if "user_id" not in st.session_state:
+        st.switch_page("🏠_Home.py")
     main()

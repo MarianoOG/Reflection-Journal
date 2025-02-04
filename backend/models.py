@@ -31,18 +31,18 @@ class SentimentType(str, Enum):
     NEGATIVE = "Negative"
 
 class User(SQLModel, table=True):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: str = Field(default_factory=lambda: "user_" + str(uuid.uuid4()), primary_key=True)
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=1, max_length=200)
     prefered_language: Languages = Field(default=Languages.EN)
 
 class Theme(SQLModel, table=True):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: str = Field(default_factory=lambda: "theme_" + str(uuid.uuid4()), primary_key=True)
     name: str = Field(min_length=1, max_length=200)
 
 class Reflection(SQLModel, table=True):
     # Tree structure
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: str = Field(default_factory=lambda: "reflection_" + str(uuid.uuid4()), primary_key=True)
     created_at: datetime = Field(default_factory=datetime.now)
     user_id: str = Field(foreign_key="user.id")
     parent_id: Optional[str] = Field(foreign_key="reflection.id", default=None)
@@ -58,7 +58,7 @@ class Reflection(SQLModel, table=True):
     answer: Optional[str] = Field(default=None, max_length=2000)
 
 class ReflectionTheme(SQLModel, table=True):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: str = Field(default_factory=lambda: "reflection_theme_" + str(uuid.uuid4()), primary_key=True)
     theme_id: str = Field(foreign_key="theme.id")
     reflection_id: str = Field(foreign_key="reflection.id")
 

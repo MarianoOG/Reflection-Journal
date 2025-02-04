@@ -1,6 +1,5 @@
 # Standard library imports
 import random
-import uuid
 from contextlib import asynccontextmanager
 import json
 
@@ -316,19 +315,26 @@ def delete_reflection(reflection_id: str):
 def create_user(user: User):
     """
     Create a new user and initialize with default reflection entries from the data files.
+    If a user with the given ID already exists, returns 409 Conflict.
     """
     with Session(database_engine) as session:
-        # Create user
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+        # Check if user already exists
+        existing_user = session.get(User, user.id)
+        if existing_user:
+            raise HTTPException(status_code=409, detail="User with this ID already exists")
         
         # Load questions from the appropriate language file
         language_file = f"./data/{str(user.prefered_language)}.jsonl"
+
         try:
+            # Create user
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+
             with open(language_file, 'r', encoding='utf-8') as f:
                 questions = [json.loads(line) for line in f]
-                
+
             # Create initial reflections for the user
             for q in questions:
                 reflection = Reflection(

@@ -31,20 +31,36 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.LOCATION }}-docker.pkg.dev 
 
-      - name: Build and Push Container
-        id: 'build'
+      - name: Build and Push Backend
+        id: 'build-backend'
         run: |
-          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod:latest" .
-          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod" --all-tags
+          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:latest" ./backend
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend" --all-tags
 
-      - name: Deploy to Cloud Run
-        id: 'deploy'
+      - name: Deploy Backend
+        id: 'deploy-backend'
         run: |
           gcloud run deploy reflection-journal \
           --region ${{ secrets.LOCATION }} \
-          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/prod" \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:latest" \
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=1 \
-          --project ${{ secrets.PROJECT_ID }} \
-          --set-env-vars "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
+          --project ${{ secrets.PROJECT_ID }}
+
+      - name: Build and Push Frontend
+        id: 'build-frontend'
+        run: |
+          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:latest" ./frontend
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend" --all-tags
+
+      - name: Deploy Frontend
+        id: 'deploy-frontend'
+        run: |
+          gcloud run deploy reflection-journal-frontend \
+          --region ${{ secrets.LOCATION }} \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:latest" \
+          --allow-unauthenticated \
+          --min-instances=0 \
+          --max-instances=1 \
+          --project ${{ secrets.PROJECT_ID }}

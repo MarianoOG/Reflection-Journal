@@ -33,8 +33,10 @@ class SentimentType(str, Enum):
 class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: "user_" + str(uuid.uuid4()), primary_key=True)
     name: str = Field(min_length=1, max_length=200)
-    email: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=1, max_length=500, unique=True)
     prefered_language: Languages = Field(default=Languages.EN)
+    last_login: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 class Theme(SQLModel, table=True):
     id: str = Field(default_factory=lambda: "theme_" + str(uuid.uuid4()), primary_key=True)

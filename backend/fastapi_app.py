@@ -1,5 +1,6 @@
 # Standard library imports
 import random
+from datetime import datetime
 from contextlib import asynccontextmanager
 import json
 
@@ -17,7 +18,7 @@ settings = Settings()
 database_engine = None
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     """Manage application lifespan events."""
     # Startup
     global database_engine
@@ -330,7 +331,6 @@ def create_user(user: User):
             # Create user
             session.add(user)
             session.commit()
-            session.refresh(user)
 
             with open(language_file, 'r', encoding='utf-8') as f:
                 questions = [json.loads(line) for line in f]
@@ -346,10 +346,26 @@ def create_user(user: User):
                 session.add(reflection)
             
             session.commit()
+            session.refresh(user)
             return user
         except Exception as e:
             session.rollback()
             raise HTTPException(status_code=500, detail=f"Error initializing user: {str(e)}")
+
+@app.get("/users/{email}")
+def get_user_by_email(email: str):
+    """
+    Get a user by email.
+    """
+    with Session(database_engine) as session:
+        user = session.exec(select(User).where(User.email == email)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.last_login = datetime.now()
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
 
 @app.get("/users/{user_id}/stats")
 def get_user_stats(user_id: str):

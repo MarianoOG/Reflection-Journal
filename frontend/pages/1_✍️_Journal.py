@@ -137,7 +137,7 @@ def render_entry(entry_id: str, is_child: bool = False):
 
 
 def get_unanswered_reflection_entry():
-    response = requests.get(f"{st.session_state.backend_url}/reflections/random/unanswered/{st.session_state.user_id}")
+    response = requests.get(f"{st.session_state.backend_url}/reflections/random/unanswered/{st.session_state.user['id']}")
     if response.status_code == 200:
         entry = response.json()
         set_current_entry(entry["id"])
@@ -152,33 +152,26 @@ def set_current_entry(entry_id: str):
 
 def main():
     # Get user stats
-    response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/stats")
+    response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user['id']}/stats")
     if response.status_code == 404:
-        with st.spinner("Creating user..."):
-            response = requests.post(f"{st.session_state.backend_url}/users/", 
-                                     json={"id": st.session_state.user_id, 
-                                           "name": st.session_state.user_name, 
-                                           "email": st.session_state.user_email,
-                                           "prefered_language": st.session_state.user_language})
-            if response.status_code != 200:
-                st.error("Failed to create user")
-                return
+        st.session_state.clear()
+        st.switch_page("🏠_Home.py")
     elif response.status_code != 200:
         st.error("Failed to get user stats")
         return
     stats = response.json()
-
-    analyzed_entries = 0
-    total_entries = 0
-    if "answered_entries" in stats and "total_entries" in stats:
-        analyzed_entries = stats["answered_entries"]
-        total_entries = stats["total_entries"]
+    analyzed_entries = stats["answered_entries"]
+    total_entries = stats["total_entries"]
 
     # Display the sidebar
     st.sidebar.title("Reflection Journal")
     st.sidebar.caption("Analyze and save your reflections")
-    metric_col1, metric_col2 = st.sidebar.columns(2)    
-    st.sidebar.button("Go to unanswered question", 
+    metric_col1, metric_col2 = st.sidebar.columns(2)
+    metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
+    metric_col2.metric(label="Total Entries", value=total_entries)
+    
+    # Display the button
+    st.sidebar.button("Go to next question", 
                       on_click=get_unanswered_reflection_entry,
                       use_container_width=True,
                       type="primary")
@@ -188,51 +181,36 @@ def main():
         st.info("All entries analyzed.")
         return
 
-    # Initialize the reflection entries
-    if total_entries == 0:
-        # Get an unanswered reflection
-        response = requests.get(f"{st.session_state.backend_url}/reflections/random/unanswered/{st.session_state.user_id}")
+    # Get an unanswered reflection
+    if "current_entry_id" not in st.session_state:
+        get_unanswered_reflection_entry()
+
+    # Get the current entry
+    response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
+    if response.status_code != 200:
+        st.warning("Current entry not found, going back to original entry")
+        # Get all reflections and find the first one
+        response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user['id']}/reflections")
         if response.status_code == 200:
-            entry = response.json()
-            set_current_entry(entry["id"])
-
-    # Display the current entry
-    if "current_entry_id" in st.session_state:
-        response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
+            reflections = response.json()
+            if reflections:
+                set_current_entry(reflections[0]["id"])
+                response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
         if response.status_code != 200:
-            st.warning("Current entry not found, going back to original entry")
-            # Get all reflections and find the first one
-            response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/reflections")
-            if response.status_code == 200:
-                reflections = response.json()
-                if reflections:
-                    set_current_entry(reflections[0]["id"])
-                    response = requests.get(f"{st.session_state.backend_url}/reflections/{st.session_state.current_entry_id}")
-            if response.status_code != 200:
-                st.error("Failed to get reflection")
-                st.stop()
-        
-        current_entry = response.json()
-        render_entry(current_entry["id"])
-        
-        # Get and render children
-        children_response = requests.get(f"{st.session_state.backend_url}/reflections/{current_entry['id']}/children")
-        if children_response.status_code == 200:
-            children = children_response.json()
-            for child in children:
-                render_entry(child["id"], is_child=True)
-
-    # Update and display the metrics
-    response = requests.get(f"{st.session_state.backend_url}/users/{st.session_state.user_id}/stats")
-    if response.status_code == 200:
-        stats = response.json()
-        analyzed_entries = stats["answered_entries"]
-        total_entries = stats["total_entries"]
-        metric_col1.metric(label="Entries Analyzed", value=analyzed_entries)
-        metric_col2.metric(label="Total Entries", value=total_entries)
-
+            st.error("Failed to get reflection")
+            st.stop()
+    
+    current_entry = response.json()
+    render_entry(current_entry["id"])
+    
+    # Get and render children
+    children_response = requests.get(f"{st.session_state.backend_url}/reflections/{current_entry['id']}/children")
+    if children_response.status_code == 200:
+        children = children_response.json()
+        for child in children:
+            render_entry(child["id"], is_child=True)
 
 if __name__ == "__main__":
-    if "user_id" not in st.session_state:
+    if "user" not in st.session_state:
         st.switch_page("🏠_Home.py")
     main()

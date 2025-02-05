@@ -324,7 +324,7 @@ def create_user(user: User):
             raise HTTPException(status_code=409, detail="User with this ID already exists")
         
         # Load questions from the appropriate language file
-        language_file = f"./data/{str(user.prefered_language)}.jsonl"
+        language_file = f"./questions/{str(user.prefered_language)}.jsonl"
 
         try:
             # Create user

@@ -40,13 +40,16 @@ jobs:
       - name: Deploy Backend
         id: 'deploy-backend'
         run: |
-          gcloud run deploy reflection-journal \
+          gcloud run deploy reflection-journal-backend \
           --region ${{ secrets.LOCATION }} \
           --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:latest" \
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=1 \
-          --project ${{ secrets.PROJECT_ID }}
+          --project ${{ secrets.PROJECT_ID }} \
+          --set-env-vars="OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},DATABASE_URL=sqlite:///db/reflexion.db" \
+          --add-volume="name=db,type=cloud-storage,bucket=${{ secrets.BUCKET_NAME }}" \
+          --add-volume-mount="volume=db,mount-path=/app/db"
 
       - name: Build and Push Frontend
         id: 'build-frontend'

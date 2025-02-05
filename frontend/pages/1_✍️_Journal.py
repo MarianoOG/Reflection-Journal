@@ -30,7 +30,7 @@ def analyze_reflection(entry_id: str):
     return
 
 
-def ignore_entry(entry_id: str):
+def delete_entry(entry_id: str):
     response = requests.delete(f"{st.session_state.backend_url}/reflections/{entry_id}")
     if response.status_code != 200:
         st.error("Failed to delete reflection")
@@ -121,18 +121,12 @@ def render_entry(entry_id: str, is_child: bool = False):
                                   height=250)
     
     # Display the buttons
-    col_ignore, col_save_for_later, col_analyze = st.columns([1, 1, 1])
-    col_ignore.button("Ignore", 
-                      key=f"ignore_{entry['id']}", 
-                      on_click=ignore_entry, 
+    col_ignore, _, col_analyze = st.columns([1, 1, 1])
+    col_ignore.button("Delete", 
+                      key=f"delete_{entry['id']}", 
+                      on_click=delete_entry, 
                       args=(entry["id"],),
-                      use_container_width=True,
-                      disabled=entry["type"] == "Original")
-    col_save_for_later.button("Save for later", 
-                              key=f"save_for_later_{entry['id']}", 
-                              on_click=save_for_later,
-                              args=(entry["id"],),
-                              use_container_width=True)
+                      use_container_width=True)
     col_analyze.button("Analyze", 
                         key=f"analyze_{entry['id']}", 
                         on_click=analyze_reflection,

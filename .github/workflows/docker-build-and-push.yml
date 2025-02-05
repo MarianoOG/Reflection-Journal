@@ -37,6 +37,12 @@ jobs:
           docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:latest" ./backend
           docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend" --all-tags
 
+      - name: Build and Push Frontend
+          id: 'build-frontend'
+          run: |
+            docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:latest" ./frontend
+            docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend" --all-tags
+
       - name: Deploy Backend
         id: 'deploy-backend'
         run: |
@@ -50,12 +56,6 @@ jobs:
           --set-env-vars="OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},DATABASE_URL=sqlite:///db/reflexion.db" \
           --add-volume="name=db,type=cloud-storage,bucket=${{ secrets.BUCKET_NAME }}" \
           --add-volume-mount="volume=db,mount-path=/app/db"
-
-      - name: Build and Push Frontend
-        id: 'build-frontend'
-        run: |
-          docker build -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend:latest" ./frontend
-          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/frontend" --all-tags
 
       - name: Deploy Frontend
         id: 'deploy-frontend'

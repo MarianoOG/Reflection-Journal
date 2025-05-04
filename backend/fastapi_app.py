@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import json
 
 # Third-party imports
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, Body, Path
 from sqlmodel import Session, create_engine, select, func
 import uvicorn
 
@@ -33,8 +33,12 @@ app.title = "Reflexion Journal"
 app.version = "0.0.1"
 
 
-@app.get("/themes")
-def list_themes(offset: int = 0, limit: int = 100):
+@app.get("/themes", 
+         tags=["Themes"], 
+         summary="List themes", 
+         description="Retrieves themes with pagination. Adjust offset and limit to page through results.")
+def list_themes(offset: int = Query(0, description="Number of records to skip."), 
+                limit: int = Query(100, description="Maximum number of records to return, capped at 100.")):
     """
     List themes with pagination.
     
@@ -49,8 +53,11 @@ def list_themes(offset: int = 0, limit: int = 100):
         themes = session.exec(select(Theme).offset(offset).limit(limit)).all()
         return themes
 
-@app.get("/themes/{theme_id}/reflections")
-def get_theme_reflections(theme_id: str):
+@app.get("/themes/{theme_id}/reflections", 
+         tags=["Themes"], 
+         summary="Get reflections for a theme", 
+         description="Returns all reflections associated with the given theme.")
+def get_theme_reflections(theme_id: str = Path(..., description="ID of the theme whose reflections are retrieved")):
     """
     Retrieve all reflections associated with a given theme ID.
     
@@ -77,8 +84,11 @@ def get_theme_reflections(theme_id: str):
         
         return list(reflections.values())
 
-@app.delete("/themes/{theme_id}")
-def delete_theme(theme_id: str):
+@app.delete("/themes/{theme_id}", 
+            tags=["Themes"], 
+            summary="Delete theme", 
+            description="Deletes the specified theme and all its reflection relations.")
+def delete_theme(theme_id: str = Path(..., description="ID of the theme to delete")):
     """
     Delete a theme by ID and all its relations in ReflectionTheme.
     """
@@ -97,8 +107,12 @@ def delete_theme(theme_id: str):
         session.commit()
         return {"message": "Theme and its relations deleted successfully"}
 
-@app.get("/reflections")
-def list_reflections(offset: int = 0, limit: int = 100):
+@app.get("/reflections", 
+         tags=["Reflections"], 
+         summary="List reflections", 
+         description="Retrieves reflections with pagination.")
+def list_reflections(offset: int = Query(0, description="Number of records to skip."), 
+                     limit: int = Query(100, description="Maximum number of records to return, capped at 100.")):
     """
     List reflections with pagination.
     
@@ -113,8 +127,11 @@ def list_reflections(offset: int = 0, limit: int = 100):
         reflections = session.exec(select(Reflection).offset(offset).limit(limit)).all()
         return reflections
 
-@app.put("/reflections/")
-def upsert_reflection(reflection: Reflection):
+@app.put("/reflections/", 
+         tags=["Reflections"], 
+         summary="Upsert a reflection", 
+         description="Creates or updates a reflection. If a reflection with the provided ID exists, it is updated; otherwise, a new reflection is created.")
+def upsert_reflection(reflection: Reflection = Body(..., description="Reflection object to upsert")):
     """
     Upsert a reflection. If reflection_id exists, update it; if not, create new with specified ID.
     """
@@ -134,8 +151,11 @@ def upsert_reflection(reflection: Reflection):
         session.refresh(existing_reflection if existing_reflection else reflection)
         return existing_reflection if existing_reflection else reflection
 
-@app.get("/reflections/{reflection_id}")
-def get_reflection(reflection_id: str):
+@app.get("/reflections/{reflection_id}", 
+         tags=["Reflections"], 
+         summary="Get a reflection", 
+         description="Retrieves a reflection by its unique identifier.")
+def get_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection")):
     """
     Retrieve a reflection by ID.
     """
@@ -145,8 +165,11 @@ def get_reflection(reflection_id: str):
             raise HTTPException(status_code=404, detail="Reflection not found")
         return reflection
 
-@app.get("/reflections/{reflection_id}/parent")
-def get_reflection_parent(reflection_id: str):
+@app.get("/reflections/{reflection_id}/parent", 
+         tags=["Reflections"], 
+         summary="Get reflection parent", 
+         description="Retrieves the parent reflection of the given reflection.")
+def get_reflection_parent(reflection_id: str = Path(..., description="Identifier of the reflection whose parent is to be retrieved")):
     """
     Retrieve the parent reflection of a given reflection ID.
     """
@@ -163,8 +186,11 @@ def get_reflection_parent(reflection_id: str):
             raise HTTPException(status_code=404, detail="Parent reflection not found")
         return parent
 
-@app.get("/reflections/{reflection_id}/children")
-def get_reflection_children(reflection_id: str):
+@app.get("/reflections/{reflection_id}/children", 
+         tags=["Reflections"], 
+         summary="Get reflection children", 
+         description="Retrieves all child reflections for the given reflection.")
+def get_reflection_children(reflection_id: str = Path(..., description="Identifier of the reflection whose children are requested")):
     """
     Retrieve all child reflections of a given reflection ID.
     """
@@ -179,8 +205,11 @@ def get_reflection_children(reflection_id: str):
         ).all()
         return children
 
-@app.get("/reflections/{reflection_id}/themes")
-def get_reflection_themes(reflection_id: str):
+@app.get("/reflections/{reflection_id}/themes", 
+         tags=["Reflections"], 
+         summary="Get reflection themes", 
+         description="Retrieves all themes associated with the given reflection.")
+def get_reflection_themes(reflection_id: str = Path(..., description="Unique identifier of the reflection to get themes for")):
     """
     Retrieve all themes associated with a given reflection ID.
     
@@ -207,8 +236,11 @@ def get_reflection_themes(reflection_id: str):
         
         return themes
 
-@app.post("/reflections/{reflection_id}/analyze")
-def analyze_reflection_by_id(reflection_id: str):
+@app.post("/reflections/{reflection_id}/analyze", 
+          tags=["Reflections"], 
+          summary="Analyze reflection", 
+          description="Analyzes the reflection using LLM and updates its sentiment, themes and creates child reflections based on beliefs.")
+def analyze_reflection_by_id(reflection_id: str = Path(..., description="Unique identifier of the reflection to analyze")):
     """
     Analyze a reflection by ID using LLM and update the reflection with the analysis results.
     
@@ -261,8 +293,11 @@ def analyze_reflection_by_id(reflection_id: str):
         session.commit()
         return {"message": "Reflection analyzed successfully"}
 
-@app.get("/reflections/random/unanswered/{user_id}")
-def get_random_unanswered_reflection(user_id: str):
+@app.get("/reflections/random/unanswered/{user_id}", 
+         tags=["Reflections"], 
+         summary="Get random unanswered reflection", 
+         description="Retrieves a random reflection without an answer for the specified user.")
+def get_random_unanswered_reflection(user_id: str = Path(..., description="User identifier for which an unanswered reflection is requested")):
     """
     Retrieve a random reflection that has no answer for the specified user.
     
@@ -287,8 +322,11 @@ def get_random_unanswered_reflection(user_id: str):
         # Return a random reflection from the list
         return random.choice(unanswered_reflections)
 
-@app.delete("/reflections/{reflection_id}")
-def delete_reflection(reflection_id: str):
+@app.delete("/reflections/{reflection_id}", 
+            tags=["Reflections"], 
+            summary="Delete reflection", 
+            description="Deletes a reflection and reassigns its children to its parent if applicable.")
+def delete_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection to delete")):
     """
     Delete a reflection by ID. If the reflection has children, they will be
     reassigned to the parent of the deleted reflection.
@@ -312,8 +350,11 @@ def delete_reflection(reflection_id: str):
         session.commit()
         return {"message": "Reflection deleted successfully"}
 
-@app.post("/users/")
-def create_user(user: User):
+@app.post("/users/", 
+          tags=["Users"], 
+          summary="Create user", 
+          description="Creates a new user and initializes default reflection entries from language-specific question files.")
+def create_user(user: User = Body(..., description="User data for creating a new user")):
     """
     Create a new user and initialize with default reflection entries from the data files.
     If a user with the given ID already exists, returns 409 Conflict.
@@ -352,8 +393,11 @@ def create_user(user: User):
             session.rollback()
             raise HTTPException(status_code=500, detail=f"Error initializing user: {str(e)}")
 
-@app.get("/users/{email}")
-def get_user_by_email(email: str):
+@app.get("/users/{email}", 
+         tags=["Users"], 
+         summary="Get user by email", 
+         description="Retrieves a user by email and updates their last login timestamp.")
+def get_user_by_email(email: str = Path(..., description="Email address of the user")):
     """
     Get a user by email.
     """
@@ -367,8 +411,11 @@ def get_user_by_email(email: str):
         session.refresh(user)
         return user
 
-@app.get("/users/{user_id}/stats")
-def get_user_stats(user_id: str):
+@app.get("/users/{user_id}/stats", 
+         tags=["Users"], 
+         summary="Get user statistics", 
+         description="Retrieves statistics for the user including total and answered reflection counts.")
+def get_user_stats(user_id: str = Path(..., description="Unique identifier of the user")):
     """
     Get user statistics including total entries and number of answered entries.
     """
@@ -398,8 +445,13 @@ def get_user_stats(user_id: str):
             "answered_entries": answered_count
         }
 
-@app.get("/users/{user_id}/reflections")
-def get_user_reflections(user_id: str, offset: int = 0, limit: int = 100):
+@app.get("/users/{user_id}/reflections", 
+         tags=["Users"], 
+         summary="Get user reflections", 
+         description="Retrieves reflections for the specified user with pagination.")
+def get_user_reflections(user_id: str = Path(..., description="User identifier"), 
+                         offset: int = Query(0, description="Number of records to skip"), 
+                         limit: int = Query(100, description="Maximum number of reflections to return, capped at 100")):
     """
     Get all reflections for a user with pagination.
     
@@ -427,8 +479,13 @@ def get_user_reflections(user_id: str, offset: int = 0, limit: int = 100):
         
         return reflections
 
-@app.get("/users/{user_id}/themes")
-def get_user_themes(user_id: str, offset: int = 0, limit: int = 100):
+@app.get("/users/{user_id}/themes", 
+         tags=["Users"], 
+         summary="Get user themes", 
+         description="Retrieves themes associated with the user's reflections with pagination.")
+def get_user_themes(user_id: str = Path(..., description="User identifier"), 
+                    offset: int = Query(0, description="Number of records to skip"), 
+                    limit: int = Query(100, description="Maximum number of themes to return, capped at 100")):
     """
     Get all themes associated with a user's reflections with pagination.
     
@@ -461,8 +518,11 @@ def get_user_themes(user_id: str, offset: int = 0, limit: int = 100):
         themes = session.exec(stmt).all()
         return themes
 
-@app.delete("/users/{user_id}")
-def delete_user(user_id: str):
+@app.delete("/users/{user_id}", 
+            tags=["Users"], 
+            summary="Delete user", 
+            description="Deletes a user and all associated reflections and theme relations.")
+def delete_user(user_id: str = Path(..., description="Unique identifier of the user to delete")):
     """
     Delete a user and all associated reflections and theme relations.
     """
@@ -497,7 +557,10 @@ def delete_user(user_id: str):
         
         return {"message": "User and associated data deleted successfully"}
 
-@app.get("/health")
+@app.get("/health", 
+         tags=["Health"], 
+         summary="Health check", 
+         description="Checks the database connection and returns the application's health status.")
 def health_check():
     """
     Health endpoint to check database connection.
@@ -509,7 +572,10 @@ def health_check():
     except Exception as e:
         raise HTTPException(status_code=503, detail="Database connection failed")
 
-@app.get("/")
+@app.get("/", 
+         tags=["Root"], 
+         summary="Welcome Endpoint",
+         description="Returns a welcome message including the application title and version.")
 def root():
     return {"message": f"Welcome to {app.title} v{app.version}"}
 

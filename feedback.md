@@ -21,3 +21,4 @@
 - think about mobile version (side bar is not visible by default)
 - error handling (warnings in front end) no idea what it is
 - Fact check using perplexity to validate the answers when there's factual information
+- Add audio

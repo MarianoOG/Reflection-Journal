@@ -22,3 +22,4 @@
 - error handling (warnings in front end) no idea what it is
 - Fact check using perplexity to validate the answers when there's factual information
 - Add audio
+- Keep it simple, only 3 levels of sentiment is nedded

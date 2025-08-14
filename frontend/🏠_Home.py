@@ -10,8 +10,7 @@ def get_user_by_email(user_email: str) -> Optional[dict]:
     response = requests.get(f"{st.session_state.backend_url}/users/{user_email}")
     if response.status_code == 200:
         return response.json()
-    print(response.json())
-    print(response.status_code)
+    print("Error getting user by email", response.status_code, response.text)
     return None
 
 def create_user(user_name: str, user_email: str, user_language: str) -> Optional[str]:

@@ -67,5 +67,5 @@ jobs:
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=1 \
-          --project ${{ secrets.PROJECT_ID }}
+          --project ${{ secrets.PROJECT_ID }} \
           --set-env-vars= ${{ secrets.BACKEND_URL }}

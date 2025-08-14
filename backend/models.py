@@ -42,6 +42,7 @@ class User(SQLModel, table=True):
 class Theme(SQLModel, table=True):
     id: str = Field(default_factory=lambda: "theme_" + str(uuid.uuid4()), primary_key=True)
     name: str = Field(min_length=1, max_length=200)
+    user_id: str = Field(foreign_key="user.id")
 
 class Reflection(SQLModel, table=True):
     # Tree structure

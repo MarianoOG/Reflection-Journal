@@ -9,6 +9,7 @@ import streamlit as st
 def get_user_by_email(user_email: str) -> Optional[dict]:
     response = requests.get(f"{st.session_state.backend_url}/users/{user_email}")
     if response.status_code == 200:
+        st.write(response.json())
         return response.json()
     return None
 

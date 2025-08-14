@@ -50,7 +50,6 @@ jobs:
           --region ${{ secrets.LOCATION }} \
           --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/backend:latest" \
           --allow-unauthenticated \
-          --ingress=internal \
           --min-instances=0 \
           --max-instances=1 \
           --project ${{ secrets.PROJECT_ID }} \

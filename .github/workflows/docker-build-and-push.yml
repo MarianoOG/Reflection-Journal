@@ -68,4 +68,4 @@ jobs:
           --min-instances=0 \
           --max-instances=1 \
           --project ${{ secrets.PROJECT_ID }} \
-          --set-env-vars= ${{ secrets.BACKEND_URL }}
+          --set-env-vars="BACKEND_URL=${{ secrets.BACKEND_URL }}"

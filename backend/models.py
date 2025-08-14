@@ -34,6 +34,7 @@ class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: "user_" + str(uuid.uuid4()), primary_key=True)
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=1, max_length=500, unique=True)
+    password_hash: str = Field(min_length=1, max_length=255)
     prefered_language: Languages = Field(default=Languages.EN)
     last_login: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
@@ -96,3 +97,28 @@ class LLMSummary(SQLModel):
     sentiment: SentimentType
     main_question: str
     answer_summary: str
+
+####################
+#   Auth Models    #
+####################
+
+class UserCreate(SQLModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=1, max_length=500)
+    password: str = Field(min_length=8, max_length=100)
+
+class UserLogin(SQLModel):
+    email: str = Field(min_length=1, max_length=500)
+    password: str = Field(min_length=1, max_length=100)
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+class UserResponse(SQLModel):
+    id: str
+    name: str
+    email: str
+    prefered_language: Languages
+    last_login: datetime
+    created_at: datetime

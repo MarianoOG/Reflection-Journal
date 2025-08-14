@@ -1,21 +1,27 @@
 # Standard library imports
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import json
 
 # Third-party imports
-from fastapi import FastAPI, HTTPException, Query, Body, Path
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Query, Body, Path, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, create_engine, select, func
 import uvicorn
 
 # Local application imports
 from config import Settings
 from llm import analyze_reflection
-from models import User, Theme, Reflection, ReflectionTheme, ReflectionType, create_db_and_tables
+from models import User, Theme, Reflection, ReflectionTheme, ReflectionType, create_db_and_tables, UserCreate, UserLogin, Token, UserResponse
+from auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
 
 settings = Settings()
 database_engine = None
+
+# Create security instance that returns 401 instead of 403
+security = HTTPBearer(auto_error=False)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -31,6 +37,25 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.title = "Reflexion Journal"
 app.version = "0.0.1"
+
+# Create auth dependency with database session
+def get_current_user_dep(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    with Session(database_engine) as session:
+        from auth import verify_token
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+        # Check if credentials are provided
+        if credentials is None:
+            raise credentials_exception
+        
+        user = verify_token(credentials.credentials, session)
+        if user is None:
+            raise credentials_exception
+        return user
 
 
 @app.get("/themes", 
@@ -130,14 +155,19 @@ def list_reflections(offset: int = Query(0, description="Number of records to sk
 @app.put("/reflections/", 
          tags=["Reflections"], 
          summary="Upsert a reflection", 
-         description="Creates or updates a reflection. If a reflection with the provided ID exists, it is updated; otherwise, a new reflection is created.")
-def upsert_reflection(reflection: Reflection = Body(..., description="Reflection object to upsert")):
+         description="Creates or updates a reflection for the authenticated user. If a reflection with the provided ID exists, it is updated; otherwise, a new reflection is created.")
+def upsert_reflection(reflection: Reflection = Body(..., description="Reflection object to upsert"), current_user: User = Depends(get_current_user_dep)):
     """
     Upsert a reflection. If reflection_id exists, update it; if not, create new with specified ID.
+    Only allows operations on reflections owned by the authenticated user.
     """
     with Session(database_engine) as session:
         existing_reflection = session.get(Reflection, reflection.id)
         if existing_reflection:
+            # Verify ownership
+            if existing_reflection.user_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to modify this reflection")
+            
             existing_reflection.parent_id = reflection.parent_id
             existing_reflection.language = reflection.language
             existing_reflection.type = reflection.type
@@ -146,6 +176,8 @@ def upsert_reflection(reflection: Reflection = Body(..., description="Reflection
             existing_reflection.question = reflection.question
             existing_reflection.answer = reflection.answer
         else:
+            # Ensure the reflection belongs to the authenticated user
+            reflection.user_id = current_user.id
             session.add(reflection)
         session.commit()
         session.refresh(existing_reflection if existing_reflection else reflection)
@@ -293,22 +325,19 @@ def analyze_reflection_by_id(reflection_id: str = Path(..., description="Unique 
         session.commit()
         return {"message": "Reflection analyzed successfully"}
 
-@app.get("/reflections/random/unanswered/{user_id}", 
+@app.get("/reflections/random/unanswered", 
          tags=["Reflections"], 
          summary="Get random unanswered reflection", 
-         description="Retrieves a random reflection without an answer for the specified user.")
-def get_random_unanswered_reflection(user_id: str = Path(..., description="User identifier for which an unanswered reflection is requested")):
+         description="Retrieves a random reflection without an answer for the authenticated user.")
+def get_random_unanswered_reflection(current_user: User = Depends(get_current_user_dep)):
     """
-    Retrieve a random reflection that has no answer for the specified user.
-    
-    Args:
-        user_id (str): The ID of the user requesting the reflection
+    Retrieve a random reflection that has no answer for the authenticated user.
     """
     with Session(database_engine) as session:
-        # Query for reflections that have no answer and belong to the specified user
+        # Query for reflections that have no answer and belong to the authenticated user
         unanswered_reflections = session.exec(
             select(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
             .where(Reflection.answer == None)  # Using None to check for NULL in database
             .limit(100)  # Limit the number of possible reflections to 100
         ).all()
@@ -325,16 +354,20 @@ def get_random_unanswered_reflection(user_id: str = Path(..., description="User 
 @app.delete("/reflections/{reflection_id}", 
             tags=["Reflections"], 
             summary="Delete reflection", 
-            description="Deletes a reflection and reassigns its children to its parent if applicable.")
-def delete_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection to delete")):
+            description="Deletes a reflection owned by the authenticated user and reassigns its children to its parent if applicable.")
+def delete_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection to delete"), current_user: User = Depends(get_current_user_dep)):
     """
-    Delete a reflection by ID. If the reflection has children, they will be
+    Delete a reflection by ID owned by the authenticated user. If the reflection has children, they will be
     reassigned to the parent of the deleted reflection.
     """
     with Session(database_engine) as session:
         reflection = session.get(Reflection, reflection_id)
         if not reflection:
             raise HTTPException(status_code=404, detail="Reflection not found")
+        
+        # Verify ownership
+        if reflection.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this reflection")
         
         # Get all child reflections
         child_reflections = session.exec(
@@ -350,93 +383,117 @@ def delete_reflection(reflection_id: str = Path(..., description="Unique identif
         session.commit()
         return {"message": "Reflection deleted successfully"}
 
-@app.post("/users/", 
-          tags=["Users"], 
-          summary="Create user", 
-          description="Creates a new user and initializes default reflection entries from language-specific question files.")
-def create_user(user: User = Body(..., description="User data for creating a new user")):
+@app.post("/auth/register", 
+          tags=["Authentication"], 
+          summary="Register user", 
+          description="Creates a new user account with password authentication.",
+          response_model=UserResponse)
+def register_user(user_data: UserCreate = Body(..., description="User registration data")):
     """
-    Create a new user and initialize with default reflection entries from the data files.
-    If a user with the given ID already exists, returns 409 Conflict.
+    Create a new user account with password authentication.
     """
     with Session(database_engine) as session:
         # Check if user already exists
-        existing_user = session.get(User, user.id)
+        existing_user = session.exec(select(User).where(User.email == user_data.email)).first()
         if existing_user:
-            raise HTTPException(status_code=409, detail="User with this ID already exists")
+            raise HTTPException(status_code=409, detail="User with this email already exists")
         
-        # Load questions from the appropriate language file
-        language_file = f"./questions/{str(user.prefered_language)}.jsonl"
-
+        # Hash password and create user
+        password_hash = get_password_hash(user_data.password)
+        user = User(
+            name=user_data.name,
+            email=user_data.email,
+            password_hash=password_hash
+        )
+        
         try:
             # Create user
             session.add(user)
             session.commit()
-
-            with open(language_file, 'r', encoding='utf-8') as f:
-                questions = [json.loads(line) for line in f]
-
-            # Create initial reflections for the user
-            for q in questions:
-                reflection = Reflection(
-                    user_id=user.id,
-                    language=user.prefered_language,
-                    type=ReflectionType(q['type']),
-                    question=q['question']
-                )
-                session.add(reflection)
-            
-            session.commit()
             session.refresh(user)
-            return user
+            
+            # Return user response without password hash
+            return UserResponse(
+                id=user.id,
+                name=user.name,
+                email=user.email,
+                prefered_language=user.prefered_language,
+                last_login=user.last_login,
+                created_at=user.created_at
+            )
         except Exception as e:
             session.rollback()
-            raise HTTPException(status_code=500, detail=f"Error initializing user: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
 
-@app.get("/users/{email}", 
-         tags=["Users"], 
-         summary="Get user by email", 
-         description="Retrieves a user by email and updates their last login timestamp.")
-def get_user_by_email(email: str = Path(..., description="Email address of the user")):
+@app.post("/auth/login", 
+          tags=["Authentication"], 
+          summary="Login user", 
+          description="Authenticate user with email and password, returns JWT token.",
+          response_model=Token)
+def login_user(login_data: UserLogin = Body(..., description="User login credentials")):
     """
-    Get a user by email.
+    Authenticate user and return JWT access token.
     """
     with Session(database_engine) as session:
-        user = session.exec(select(User).where(User.email == email)).first()
+        user = authenticate_user(login_data.email, login_data.password, session)
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Update last login
         user.last_login = datetime.now()
         session.add(user)
         session.commit()
-        session.refresh(user)
-        return user
+        
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.email}, expires_delta=access_token_expires
+        )
+        return Token(access_token=access_token, token_type="bearer")
 
-@app.get("/users/{user_id}/stats", 
+@app.get("/auth/me", 
+         tags=["Authentication"], 
+         summary="Get current user", 
+         description="Get information about the currently authenticated user.",
+         response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user_dep)):
+    """
+    Get information about the currently authenticated user.
+    """
+    return UserResponse(
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        prefered_language=current_user.prefered_language,
+        last_login=current_user.last_login,
+        created_at=current_user.created_at
+    )
+
+
+@app.get("/users/me/stats", 
          tags=["Users"], 
          summary="Get user statistics", 
-         description="Retrieves statistics for the user including total and answered reflection counts.")
-def get_user_stats(user_id: str = Path(..., description="Unique identifier of the user")):
+         description="Retrieves statistics for the authenticated user including total and answered reflection counts.")
+def get_user_stats(current_user: User = Depends(get_current_user_dep)):
     """
     Get user statistics including total entries and number of answered entries.
     """
     with Session(database_engine) as session:
-        # Verify user exists
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
         # Get total reflections count using COUNT
         total_count = session.exec(
             select(func.count())
             .select_from(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
         ).one()
         
         # Get answered reflections count using COUNT and WHERE
         answered_count = session.exec(
             select(func.count())
             .select_from(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
             .where(Reflection.answer != None)
         ).one()
         
@@ -445,18 +502,17 @@ def get_user_stats(user_id: str = Path(..., description="Unique identifier of th
             "answered_entries": answered_count
         }
 
-@app.get("/users/{user_id}/reflections", 
+@app.get("/users/me/reflections", 
          tags=["Users"], 
          summary="Get user reflections", 
-         description="Retrieves reflections for the specified user with pagination.")
-def get_user_reflections(user_id: str = Path(..., description="User identifier"), 
+         description="Retrieves reflections for the authenticated user with pagination.")
+def get_user_reflections(current_user: User = Depends(get_current_user_dep),
                          offset: int = Query(0, description="Number of records to skip"), 
                          limit: int = Query(100, description="Maximum number of reflections to return, capped at 100")):
     """
-    Get all reflections for a user with pagination.
+    Get all reflections for the authenticated user with pagination.
     
     Args:
-        user_id (str): The ID of the user
         offset (int): Number of records to skip (default: 0)
         limit (int): Maximum number of records to return (default: 100, max: 100)
     """
@@ -464,33 +520,27 @@ def get_user_reflections(user_id: str = Path(..., description="User identifier")
         limit = 100
         
     with Session(database_engine) as session:
-        # Verify user exists
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get paginated reflections
+        # Get paginated reflections for the authenticated user
         reflections = session.exec(
             select(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
             .offset(offset)
             .limit(limit)
         ).all()
         
         return reflections
 
-@app.get("/users/{user_id}/themes", 
+@app.get("/users/me/themes", 
          tags=["Users"], 
          summary="Get user themes", 
-         description="Retrieves themes associated with the user's reflections with pagination.")
-def get_user_themes(user_id: str = Path(..., description="User identifier"), 
+         description="Retrieves themes associated with the authenticated user's reflections with pagination.")
+def get_user_themes(current_user: User = Depends(get_current_user_dep),
                     offset: int = Query(0, description="Number of records to skip"), 
                     limit: int = Query(100, description="Maximum number of themes to return, capped at 100")):
     """
-    Get all themes associated with a user's reflections with pagination.
+    Get all themes associated with the authenticated user's reflections with pagination.
     
     Args:
-        user_id (str): The ID of the user
         offset (int): Number of records to skip (default: 0)
         limit (int): Maximum number of records to return (default: 100, max: 100)
     """
@@ -498,17 +548,12 @@ def get_user_themes(user_id: str = Path(..., description="User identifier"),
         limit = 100
         
     with Session(database_engine) as session:
-        # Verify user exists
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
         # Start from Reflection (smaller table) and join to Theme
         stmt = (
             select(Theme)
             .distinct()
             .select_from(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
             .join(ReflectionTheme)
             .join(Theme)
             .offset(offset)
@@ -518,24 +563,19 @@ def get_user_themes(user_id: str = Path(..., description="User identifier"),
         themes = session.exec(stmt).all()
         return themes
 
-@app.delete("/users/{user_id}", 
+@app.delete("/users/me", 
             tags=["Users"], 
-            summary="Delete user", 
-            description="Deletes a user and all associated reflections and theme relations.")
-def delete_user(user_id: str = Path(..., description="Unique identifier of the user to delete")):
+            summary="Delete current user", 
+            description="Deletes the authenticated user and all associated reflections and theme relations.")
+def delete_user(current_user: User = Depends(get_current_user_dep)):
     """
-    Delete a user and all associated reflections and theme relations.
+    Delete the authenticated user and all associated reflections and theme relations.
     """
     with Session(database_engine) as session:
-        # Verify user exists
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get all reflection IDs for this user
+        # Get all reflection IDs for the authenticated user
         user_reflections = session.exec(
             select(Reflection)
-            .where(Reflection.user_id == user_id)
+            .where(Reflection.user_id == current_user.id)
         ).all()
         
         # Delete all theme relations for these reflections
@@ -551,8 +591,9 @@ def delete_user(user_id: str = Path(..., description="Unique identifier of the u
         for reflection in user_reflections:
             session.delete(reflection)
 
-        # Delete the user
-        session.delete(user)
+        # Delete the user (need to get fresh instance from session)
+        user_to_delete = session.get(User, current_user.id)
+        session.delete(user_to_delete)
         session.commit()
         
         return {"message": "User and associated data deleted successfully"}
@@ -569,7 +610,7 @@ def health_check():
         with Session(database_engine) as session:
             session.exec(select(1))
         return {"status": "healthy"}
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=503, detail="Database connection failed")
 
 @app.get("/", 

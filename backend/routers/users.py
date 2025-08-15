@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
-from sqlmodel import Session, select, func
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
 
-from models import User, Reflection, ReflectionTheme, UserResponse, Theme
+from models import User, Reflection, ReflectionTheme, UserResponse, Theme, UserUpdate
 from auth import get_current_user_dep
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -28,6 +28,40 @@ def get_current_user_info(current_user: User = Depends(get_current_user_dep)):
         last_login=current_user.last_login,
         created_at=current_user.created_at
     )
+
+
+@router.put("/me", 
+         summary="Update current user", 
+         description="Update information about the currently authenticated user.",
+         response_model=UserResponse)
+def update_current_user_info(user_update: UserUpdate, current_user: User = Depends(get_current_user_dep)):
+    """
+    Update information about the currently authenticated user.
+    """
+    with Session(get_database_engine()) as session:
+        # Get fresh user instance from session
+        user_to_update = session.get(User, current_user.id)
+        if not user_to_update:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Update fields if provided
+        if user_update.name is not None:
+            user_to_update.name = user_update.name
+        if user_update.prefered_language is not None:
+            user_to_update.prefered_language = user_update.prefered_language
+        
+        session.add(user_to_update)
+        session.commit()
+        session.refresh(user_to_update)
+        
+        return UserResponse(
+            id=user_to_update.id,
+            name=user_to_update.name,
+            email=user_to_update.email,
+            prefered_language=user_to_update.prefered_language,
+            last_login=user_to_update.last_login,
+            created_at=user_to_update.created_at
+        )
 
 
 @router.delete("/me", 

@@ -121,3 +121,8 @@ class UserResponse(SQLModel):
     prefered_language: Languages
     last_login: datetime
     created_at: datetime
+
+class UserUpdate(SQLModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    prefered_language: Optional[Languages] = None
+    

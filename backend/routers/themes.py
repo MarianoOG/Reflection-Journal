@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Path, Depends
+from fastapi import APIRouter, HTTPException, Query, Path, Body, Depends
 from sqlmodel import Session, select
 from typing import Optional
 
@@ -36,6 +36,31 @@ def list_themes(offset: int = Query(0, description="Number of records to skip.")
             .limit(limit)
         ).all()
         return themes
+
+@router.put("/", 
+         summary="Upsert a theme", 
+         description="Creates or updates a theme for the authenticated user. If a theme with the provided ID exists, it is updated; otherwise, a new theme is created.")
+def upsert_theme(theme: Theme = Body(..., description="Theme object to upsert"), current_user: User = Depends(get_current_user_dep)):
+    """
+    Upsert a theme. If theme_id exists, update it; if not, create new with specified ID.
+    Only allows operations on themes owned by the authenticated user.
+    """
+    with Session(get_database_engine()) as session:
+        existing_theme = session.get(Theme, theme.id)
+        if existing_theme:
+            # Verify ownership
+            if existing_theme.user_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to modify this theme")
+            
+            existing_theme.name = theme.name
+            existing_theme.description = theme.description
+        else:
+            # Ensure the theme belongs to the authenticated user
+            theme.user_id = current_user.id
+            session.add(theme)
+        session.commit()
+        session.refresh(existing_theme if existing_theme else theme)
+        return existing_theme if existing_theme else theme
 
 @router.get("/{theme_id}/reflections", 
          summary="Get reflections for a theme", 

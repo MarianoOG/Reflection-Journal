@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body, Path, Depends
+from fastapi import APIRouter, HTTPException, Body, Path, Query, Depends
 from sqlmodel import Session, select
 
 from models import User, Theme, Reflection, ReflectionTheme
@@ -10,6 +10,31 @@ def get_database_engine():
     """Get the database engine from the main app context"""
     from fastapi_app import database_engine
     return database_engine
+
+@router.get("/", 
+         summary="List reflections", 
+         description="Retrieves reflections owned by the authenticated user with pagination.")
+def list_reflections(offset: int = Query(0, description="Number of records to skip."), 
+                limit: int = Query(100, description="Maximum number of records to return, capped at 100."),
+                current_user: User = Depends(get_current_user_dep)):
+    """
+    List reflections owned by the authenticated user with pagination.
+    
+    Args:
+        offset (int): Number of records to skip (default: 0)
+        limit (int): Maximum number of records to return (default: 100, max: 100)
+    """
+    if limit > 100:
+        limit = 100
+    
+    with Session(get_database_engine()) as session:
+        reflections = session.exec(
+            select(Reflection)
+            .where(Reflection.user_id == current_user.id)
+            .offset(offset)
+            .limit(limit)
+        ).all()
+        return reflections
 
 @router.put("/", 
          summary="Upsert a reflection", 
@@ -143,6 +168,95 @@ def get_reflection_themes(reflection_id: str = Path(..., description="Unique ide
                 themes.append(theme)
         
         return themes
+
+@router.post("/{reflection_id}/themes/{theme_id}", 
+            summary="Connect theme to reflection", 
+            description="Creates a connection between a reflection and a theme, both owned by the authenticated user.")
+def connect_theme_to_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection"), 
+                               theme_id: str = Path(..., description="Unique identifier of the theme"),
+                               current_user: User = Depends(get_current_user_dep)):
+    """
+    Connect a theme to a reflection. Both must be owned by the authenticated user.
+    """
+    with Session(get_database_engine()) as session:
+        # Verify reflection exists and is owned by user
+        reflection = session.get(Reflection, reflection_id)
+        if not reflection:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        
+        if reflection.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this reflection")
+        
+        # Verify theme exists and is owned by user
+        theme = session.get(Theme, theme_id)
+        if not theme:
+            raise HTTPException(status_code=404, detail="Theme not found")
+        
+        if theme.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this theme")
+        
+        # Check if connection already exists
+        existing_connection = session.exec(
+            select(ReflectionTheme)
+            .where(ReflectionTheme.reflection_id == reflection_id)
+            .where(ReflectionTheme.theme_id == theme_id)
+        ).first()
+        
+        if existing_connection:
+            raise HTTPException(status_code=409, detail="Theme is already connected to this reflection")
+        
+        # Create the connection
+        reflection_theme = ReflectionTheme(
+            reflection_id=reflection_id,
+            theme_id=theme_id
+        )
+        session.add(reflection_theme)
+        session.commit()
+        session.refresh(reflection_theme)
+        
+        return {"message": "Theme connected to reflection successfully", "connection_id": reflection_theme.id}
+
+@router.delete("/{reflection_id}/themes/{theme_id}", 
+              summary="Disconnect theme from reflection", 
+              description="Removes the connection between a reflection and a theme, both owned by the authenticated user.")
+def disconnect_theme_from_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection"), 
+                                   theme_id: str = Path(..., description="Unique identifier of the theme"),
+                                   current_user: User = Depends(get_current_user_dep)):
+    """
+    Disconnect a theme from a reflection. Both must be owned by the authenticated user.
+    """
+    with Session(get_database_engine()) as session:
+        # Verify reflection exists and is owned by user
+        reflection = session.get(Reflection, reflection_id)
+        if not reflection:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        
+        if reflection.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this reflection")
+        
+        # Verify theme exists and is owned by user
+        theme = session.get(Theme, theme_id)
+        if not theme:
+            raise HTTPException(status_code=404, detail="Theme not found")
+        
+        if theme.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this theme")
+        
+        # Find the connection
+        connection = session.exec(
+            select(ReflectionTheme)
+            .where(ReflectionTheme.reflection_id == reflection_id)
+            .where(ReflectionTheme.theme_id == theme_id)
+        ).first()
+        
+        if not connection:
+            raise HTTPException(status_code=404, detail="Connection between theme and reflection not found")
+        
+        # Delete the connection
+        session.delete(connection)
+        session.commit()
+        
+        return {"message": "Theme disconnected from reflection successfully"}
 
 @router.delete("/{reflection_id}", 
             summary="Delete reflection", 

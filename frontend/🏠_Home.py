@@ -114,7 +114,7 @@ def render_reflections():
         st.subheader("Recent entries")
     
     with col2:
-        if st.button("New entry", key="create_new_entry", type="primary"):
+        if st.button("New entry", key="create_new_entry", type="primary", use_container_width=True):
             st.switch_page("pages/1_✍️_Journal.py")
 
     reflections = get_reflections(limit=10)

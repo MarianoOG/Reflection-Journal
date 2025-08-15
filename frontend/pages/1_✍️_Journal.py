@@ -1,6 +1,5 @@
 import requests
 import streamlit as st
-import uuid
 from typing import Optional, List
 
 sentiment_emojis = {
@@ -72,94 +71,91 @@ def delete_reflection(reflection_id: str) -> bool:
 
 def render_edit_mode(reflection: dict = None):
     """Render the edit interface"""
-       
-    answer = st.text_area(
-        "Your Reflection",
-        value=reflection.get("answer", "") if reflection else "",
-        max_chars=2000,
-        height=400,
-        help="Your thoughts, insights, or answers"
-    )
-
-    col1, col2 = st.columns([1, 1])
     
-    with col1:
-        save_clicked = st.form_submit_button("💾 Save", 
-                                                type="primary")
-    
-    with col2:
-        if reflection:
-            cancel_clicked = st.form_submit_button("❌ Cancel")
+    with st.form("reflection_form"):
+        if reflection and reflection.get("question"):
+            st.write(reflection.get('question'))
+            if reflection.get("context"):
+                st.caption(f"Context: {reflection.get('context')}")
         else:
-            cancel_clicked = False
-    
-    if save_clicked:
-        if not answer.strip():
-            st.error("Answer is required!")
-            return
-        
-        reflection_data = {
-            "type": reflection.get("type", "") if reflection else "Thought",
-            "language": reflection.get("language", "") if reflection else "en",
-            "sentiment": reflection.get("sentiment", "") if reflection else "Neutral",
-            "parent_id": reflection.get("parent_id", "") if reflection else None,
-            "context": reflection.get("context", "") if reflection else None,
-            "question": reflection.get("question", "") if reflection else "",
-            "answer": answer if answer.strip() else None
-        }
+            st.write("Write your thoughts...")
 
-        if reflection:
-            reflection_data["id"] = reflection["id"]
+        answer = st.text_area(
+            "Your Reflection",
+            value=reflection.get("answer", "") if reflection else "",
+            max_chars=2000,
+            height=400,
+            help="Your thoughts, insights, or answers"
+        )
+
+        _, col1, col2 = st.columns([1, 1, 1])
         
-        result = save_reflection(reflection_data)
-        if result:
-            st.success("Reflection saved successfully! 🎉")
-            st.session_state.current_reflection_id = result["id"]
-            st.session_state.mode = "view"
-            st.rerun()
-        else:
-            st.error("Failed to save reflection")
-    
-        if cancel_clicked:
+        with col1:
+            save_clicked = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
+        
+        with col2:
             if reflection:
+                cancel_clicked = st.form_submit_button("❌ Cancel", use_container_width=True)
+                if cancel_clicked:
+                    if reflection:
+                        st.session_state.mode = "view"
+                        st.rerun()
+                    else:
+                        st.switch_page("🏠_Home.py")
+        
+        if save_clicked:
+            if not answer.strip():
+                st.error("Answer is required!")
+                return
+            
+            reflection_data = {
+                "type": reflection.get("type", "") if reflection else "Thought",
+                "language": reflection.get("language", "") if reflection else "en",
+                "sentiment": reflection.get("sentiment", "") if reflection else "Neutral",
+                "parent_id": reflection.get("parent_id", "") if reflection else None,
+                "context": reflection.get("context", "") if reflection else None,
+                "question": reflection.get("question", "") if reflection else "",
+                "answer": answer if answer.strip() else None
+            }
+
+            if reflection:
+                reflection_data["id"] = reflection["id"]
+            
+            result = save_reflection(reflection_data)
+            if result:
+                st.success("Reflection saved successfully! 🎉")
+                st.session_state.current_reflection_id = result["id"]
                 st.session_state.mode = "view"
                 st.rerun()
             else:
-                st.switch_page("🏠_Home.py")
+                st.error("Failed to save reflection")
+            
 
 def render_view_mode(reflection: dict):
     """Render the view interface"""
-    col1, col2 = st.columns([4, 1])
+    # Subtitle
+    st.subheader(f"{reflection['question']}")
+    if reflection.get("context"):
+        st.caption(f"Context: {reflection['context']}")
+    
+    # Answer
+    if reflection.get("answer"):
+        st.markdown(reflection["answer"])
+    else:
+        st.warning("No reflection content yet. Click Edit to add your thoughts.")
+    
+    # Render type and sentiment
+    col1, col2 = st.columns([2, 1])
     
     with col1:
         type_emoji = type_emojis.get(reflection["type"], "💭")
-        sentiment_emoji = sentiment_emojis.get(reflection["sentiment"], "😐")
-        st.subheader(f"{type_emoji} {reflection['question']}")
+        st.metric("Type", f"{type_emoji} {reflection['type']}")
     
     with col2:
-        if st.button("✏️ Edit", type="primary"):
-            st.session_state.mode = "edit"
-            st.rerun()
+        sentiment_emoji = sentiment_emojis.get(reflection["sentiment"], "😐")
+        st.metric("Sentiment", f"{sentiment_emoji} {reflection["sentiment"]}")
 
     render_actions(reflection)
-    
-    with st.container():
-        st.markdown("### Details")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Type", f"{type_emoji} {reflection['type']}")
-        with col2:
-            st.metric("Sentiment", f"{sentiment_emoji}")
-        
-        if reflection.get("context"):
-            st.caption(f"Context: {reflection['context']}")
-        
-        if reflection.get("answer"):
-            st.markdown("**Your Reflection:**")
-            st.markdown(reflection["answer"])
-        else:
-            st.warning("No reflection content yet. Click Edit to add your thoughts.")
     
     render_relationships(reflection)
 
@@ -188,27 +184,22 @@ def render_relationships(reflection: dict):
 
 def render_actions(reflection: dict):
     """Render action buttons"""
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("➕ New Reflection"):
-            st.session_state.current_reflection_id = None
+        if st.button("✏️ Edit", type="primary", use_container_width=True):
             st.session_state.mode = "edit"
             st.rerun()
-    
+
     with col2:
-        if st.button("👶 Add Child"):
+        if st.button("👶 Add Child", disabled=True, use_container_width=True):
             st.session_state.current_reflection_id = None
             st.session_state.parent_id = reflection["id"]
             st.session_state.mode = "edit"
             st.rerun()
-    
+
     with col3:
-        if st.button("🏠 Home"):
-            st.switch_page("🏠_Home.py")
-    
-    with col4:
-        if st.button("🗑️ Delete", type="secondary"):
+        if st.button("🗑️ Delete", type="secondary", use_container_width=True):
             if delete_reflection(reflection["id"]):
                 st.success("Reflection deleted!")
                 st.session_state.current_reflection_id = None
@@ -219,6 +210,11 @@ def render_actions(reflection: dict):
 def render_reflection_list():
     """Render a sidebar with all reflections for navigation"""
     with st.sidebar:
+        if st.button("➕ New Entry", type="primary", use_container_width=True):
+            st.session_state.current_reflection_id = None
+            st.session_state.mode = "edit"
+            st.rerun()
+
         st.header("📚 All Reflections")
         
         reflections = get_reflections()

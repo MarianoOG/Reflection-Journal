@@ -39,7 +39,7 @@ def check_email(user_email: str, check_deliverability: bool = False) -> Optional
         return None
 
 def render_login():
-    st.title("Login")
+    st.title("📔 Reflection Journal - Login")
     
     # Toggle between login and register
     tab1, tab2 = st.tabs(["Login", "Register"])
@@ -58,7 +58,7 @@ def render_login():
                     st.session_state.token_type = token_response["token_type"]
                     st.session_state.user_email = validated_email
                     st.success("Login successful!")
-                    st.switch_page("pages/1_✍️_Journal.py")
+                    st.rerun()
     
     with tab2:
         st.write("Create a new account")
@@ -66,24 +66,53 @@ def render_login():
         email = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password", 
                                  help="Password must be at least 8 characters long")
+        confirm_password = st.text_input("Confirm Password", type="password", key="register_confirm_password")
         
-        if st.button("Register", disabled=not name or not email or not password or len(password) < 8):
+        # Check if passwords match
+        passwords_match = password == confirm_password if password and confirm_password else True
+        if not passwords_match and confirm_password:
+            st.error("Passwords do not match")
+        
+        register_disabled = (not name or not email or not password or not confirm_password or 
+                           len(password) < 8 or not passwords_match)
+        
+        if st.button("Register", disabled=register_disabled):
             validated_email = check_email(email)
             if validated_email:
                 user_response = register_user(name, validated_email, password)
                 if user_response:
-                    st.success("Account created successfully! Please login with your credentials.")
-                    st.rerun()
+                    st.success("Account created successfully! Logging you in...")
+                    # Auto-login after successful registration
+                    token_response = login_user(validated_email, password)
+                    if token_response:
+                        st.session_state.access_token = token_response["access_token"]
+                        st.session_state.token_type = token_response["token_type"]
+                        st.session_state.user_email = validated_email
+                        st.rerun()
+            else:
+                st.error("Email verification failed")
 
 def main():
-    # Title
-    st.title("📔 Reflection Journal")
-    st.warning("🚧 Under development, your data will be saved to the cloud and used for improving the app.")
+    # Warning
+    st.sidebar.warning("🚧 Under development, your data will be saved to the cloud and used for improving the app.")
 
     # Login form
     if "access_token" not in st.session_state:
         render_login()
         return
+    
+    # Title
+    st.title("📔 Reflection Journal - My Entries")
+    
+    # Logout button in sidebar
+    with st.sidebar:
+        st.write(f"Logged in as: {st.session_state.get('user_email', 'Unknown')}")
+        if st.button("Logout"):
+            # Clear session state
+            for key in ['access_token', 'token_type', 'user_email']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
     
     # Welcome message
     st.write("Welcome to your reflection journal. Here you can record your thoughts and reflections.")

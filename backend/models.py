@@ -25,9 +25,7 @@ class ReflectionType(str, Enum):
 
 class SentimentType(str, Enum):
     POSITIVE = "Positive"
-    SLIGHTLY_POSITIVE = "Slightly Positive"
     NEUTRAL = "Neutral"
-    SLIGHTLY_NEGATIVE = "Slightly Negative"
     NEGATIVE = "Negative"
 
 class User(SQLModel, table=True):

@@ -100,21 +100,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    parser.add_argument("email", nargs="?", help="User email address")
     parser.add_argument("--email", help="User email address")
     parser.add_argument("--password", help="New password (will prompt if not provided)")
     parser.add_argument("--list", action="store_true", help="List all users")
     
     args = parser.parse_args()
     
-    # Determine email from positional or named argument
-    email = args.email or args.email
-    
     if args.list:
         list_users()
         return
     
-    if not email:
+    if not args.email:
         print("❌ Please provide a user email address.")
         print("Use --help for usage information.")
         sys.exit(1)
@@ -122,7 +118,7 @@ def main():
     print("🔄 Resetting password for user...")
     print("=" * 40)
     
-    success = reset_user_password(email, args.password)
+    success = reset_user_password(args.email, args.password)
     
     if not success:
         sys.exit(1)

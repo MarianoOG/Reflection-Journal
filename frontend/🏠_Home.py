@@ -38,6 +38,19 @@ def check_email(user_email: str, check_deliverability: bool = False) -> Optional
         st.error("Email is not valid")
         return None
 
+
+def get_reflections(limit: Optional[int] = None):
+    url = f"{st.session_state.backend_url}/reflections"
+    if limit:
+        url += f"?limit={limit}"
+    response = requests.get(url, headers={"Authorization": f"Bearer {st.session_state.access_token}"})
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error("Failed to get reflections")
+        return None
+    
+
 def render_login():
     st.title("📔 Reflection Journal - Login")
     
@@ -92,6 +105,30 @@ def render_login():
             else:
                 st.error("Email verification failed")
 
+
+def render_reflections():    
+    # Create columns for layout
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.subheader("Recent entries")
+    
+    with col2:
+        if st.button("New entry", key="create_new_entry", type="primary"):
+            st.switch_page("pages/1_✍️_Journal.py")
+
+    reflections = get_reflections(limit=10)
+    if reflections:
+        for reflection in reflections:
+            render_entry(reflection)
+    else:
+        st.info("No reflections found, create a new entry to get started.")
+        
+
+def render_entry(reflection: dict):
+    st.write("- " + reflection["question"])
+
+
 def main():
     # Warning
     st.sidebar.warning("🚧 Under development, your data will be saved to the cloud and used for improving the app.")
@@ -102,8 +139,11 @@ def main():
         return
     
     # Title
-    st.title("📔 Reflection Journal - My Entries")
+    st.title("📔 Reflection Journal")
     
+    # Render reflections
+    render_reflections()
+
     # Logout button in sidebar
     with st.sidebar:
         st.write(f"Logged in as: {st.session_state.get('user_email', 'Unknown')}")
@@ -113,12 +153,8 @@ def main():
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
-    
-    # Welcome message
-    st.write("Welcome to your reflection journal. Here you can record your thoughts and reflections.")
-    st.info("✨ To start, click on the '✍️ Journal' tab to begin writing! 📝")
 
 if __name__ == "__main__":
     st.set_page_config(page_icon="📔", page_title="Reflection Journal")
-    st.session_state.backend_url = os.getenv("BACKEND_URL", "http://backend:8080")
+    st.session_state.backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
     main()

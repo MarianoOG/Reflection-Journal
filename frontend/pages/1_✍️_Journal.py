@@ -12,7 +12,11 @@ sentiment_emojis = {
 type_emojis = {
     "Thought": "💭",
     "Memory": "🧠",
-    "Learning": "📚"
+    "Learning": "📚",
+    "Summary": "📝",
+    "Assumption": "🤔",
+    "Blind Spot": "👁️",
+    "Contradiction": "⚖️"
 }
 
 def api_request(method: str, endpoint: str, data: dict = None) -> Optional[dict]:
@@ -68,73 +72,54 @@ def delete_reflection(reflection_id: str) -> bool:
 
 def render_edit_mode(reflection: dict = None):
     """Render the edit interface"""
+       
+    answer = st.text_area(
+        "Your Reflection",
+        value=reflection.get("answer", "") if reflection else "",
+        max_chars=2000,
+        height=400,
+        help="Your thoughts, insights, or answers"
+    )
 
-    with st.form("reflection_form"):
-        reflection_type = st.selectbox(
-            "Type",
-            type_emojis.keys(),
-            format_func=lambda x: type_emojis[x] + " " + x,
-            index=list(type_emojis.keys()).index(reflection.get("type", "Thought")) if reflection else 0
-        )
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        save_clicked = st.form_submit_button("💾 Save", 
+                                                type="primary")
+    
+    with col2:
+        if reflection:
+            cancel_clicked = st.form_submit_button("❌ Cancel")
+        else:
+            cancel_clicked = False
+    
+    if save_clicked:
+        if not answer.strip():
+            st.error("Answer is required!")
+            return
         
-        question = st.text_area(
-            "Question/Title",
-            value=reflection.get("question", "") if reflection else "",
-            max_chars=100,
-            help="The main question or title for this reflection"
-        )
-        
-        answer = st.text_area(
-            "Your Reflection",
-            value=reflection.get("answer", "") if reflection else "",
-            max_chars=2000,
-            height=400,
-            help="Your thoughts, insights, or answers"
-        )
+        reflection_data = {
+            "type": reflection.get("type", "") if reflection else "Thought",
+            "language": reflection.get("language", "") if reflection else "en",
+            "sentiment": reflection.get("sentiment", "") if reflection else "Neutral",
+            "parent_id": reflection.get("parent_id", "") if reflection else None,
+            "context": reflection.get("context", "") if reflection else None,
+            "question": reflection.get("question", "") if reflection else "",
+            "answer": answer if answer.strip() else None
+        }
 
-        col1, col2 = st.columns([1, 1])
+        if reflection:
+            reflection_data["id"] = reflection["id"]
         
-        with col1:
-            save_clicked = st.form_submit_button("💾 Save", 
-                                                 type="primary")
-        
-        with col2:
-            if reflection:
-                cancel_clicked = st.form_submit_button("❌ Cancel")
-            else:
-                cancel_clicked = False
-        
-        if save_clicked:          
-            if not question.strip():
-                st.error("Question is required!")
-                return
-            
-            if not answer.strip():
-                st.error("Answer is required!")
-                return
-            
-            reflection_data = {
-                "type": reflection_type,
-                "language": "en",
-                "sentiment": "Neutral",
-                "parent_id": None,
-                "context": None,
-                "question": question,
-                "answer": answer if answer.strip() else None
-            }
-
-            if reflection:
-                reflection_data["id"] = reflection["id"]
-            
-            result = save_reflection(reflection_data)
-            if result:
-                st.success("Reflection saved successfully! 🎉")
-                st.session_state.current_reflection_id = result["id"]
-                st.session_state.mode = "view"
-                st.rerun()
-            else:
-                st.error("Failed to save reflection")
-        
+        result = save_reflection(reflection_data)
+        if result:
+            st.success("Reflection saved successfully! 🎉")
+            st.session_state.current_reflection_id = result["id"]
+            st.session_state.mode = "view"
+            st.rerun()
+        else:
+            st.error("Failed to save reflection")
+    
         if cancel_clicked:
             if reflection:
                 st.session_state.mode = "view"

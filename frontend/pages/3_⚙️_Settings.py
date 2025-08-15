@@ -126,11 +126,7 @@ def main():
                         del st.session_state[key]
                 st.switch_page("🏠_Home.py")
 
-if __name__ == "__main__":
-    st.session_state.backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
-    
-    # Check if user is logged in
+if __name__ == "__main__":    
     if "access_token" not in st.session_state:
         st.switch_page("🏠_Home.py")
-    
     main()

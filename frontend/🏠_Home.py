@@ -16,8 +16,16 @@ type_emojis = {
     "Contradiction": "⚖️"
 }
 
-def format_date(date_str: str) -> str:
-    """Format datetime string to a nice readable format"""
+def format_time(date_str: str) -> str:
+    """Format datetime string to show just the time"""
+    try:
+        dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        return dt.strftime("%H:%M")
+    except:
+        return "--:--"
+
+def get_date_group_header(date_str: str) -> str:
+    """Get a readable date header for grouping entries"""
     try:
         dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
         now = datetime.now()
@@ -25,23 +33,49 @@ def format_date(date_str: str) -> str:
         # Calculate time difference
         diff = now - dt.replace(tzinfo=None)
         
-        # If today, show time
+        # If today
         if diff.days == 0:
-            return dt.strftime("%H:%M")
-        # If yesterday, show "Yesterday"
+            return "**📅 Today**"
+        # If yesterday
         elif diff.days == 1:
-            return "Yesterday"
-        # If this week, show day name
+            return "**📅 Yesterday**"
+        # If this week
         elif diff.days < 7:
-            return dt.strftime("%A")
-        # If this year, show month and day
+            return f"**📅 {dt.strftime('%A')}**"
+        # If this year
         elif dt.year == now.year:
-            return dt.strftime("%b %d")
+            return f"**📅 {dt.strftime('%B %d')}**"
         # Otherwise, show full date
         else:
-            return dt.strftime("%b %d, %Y")
+            return f"**📅 {dt.strftime('%B %d, %Y')}**"
     except:
-        return "Unknown"
+        return "**📅 Unknown Date**"
+
+def group_reflections_by_date(reflections):
+    """Group reflections by date for display"""
+    from collections import defaultdict
+    
+    grouped = defaultdict(list)
+    
+    for reflection in reflections:
+        try:
+            dt = datetime.fromisoformat(reflection.get("created_at", "").replace('Z', '+00:00'))
+            # Use just the date part for grouping
+            date_key = dt.date()
+            grouped[date_key].append(reflection)
+        except:
+            # Fallback for entries with invalid dates
+            grouped[None].append(reflection)
+    
+    # Sort groups by date (most recent first)
+    sorted_groups = []
+    for date_key in sorted(grouped.keys(), reverse=True, key=lambda x: x if x else datetime.min.date()):
+        reflections_for_date = grouped[date_key]
+        # Sort reflections within each date group by time (most recent first)
+        reflections_for_date.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        sorted_groups.append((date_key, reflections_for_date))
+    
+    return sorted_groups
 
 def login_user(email: str, password: str) -> Optional[dict]:
     """Login user and return token response"""
@@ -179,9 +213,25 @@ def render_reflections():
         has_next = len(reflections) > items_per_page
         current_reflections = reflections[:items_per_page]  # Show only 10
         
-        # Display entries
-        for reflection in current_reflections:
-            render_entry(reflection)
+        # Group entries by date
+        grouped_reflections = group_reflections_by_date(current_reflections)
+        
+        # Display grouped entries
+        for date_key, reflections_for_date in grouped_reflections:
+            # Show date header
+            if date_key:
+                header = get_date_group_header(reflections_for_date[0].get("created_at", ""))
+            else:
+                header = "**📅 Unknown Date**"
+                
+            st.write(header)
+            
+            # Show entries for this date
+            for reflection in reflections_for_date:
+                render_entry(reflection)
+                
+            # Add some space between date groups
+            st.markdown("")
         
         # Pagination controls
         st.markdown("---")
@@ -204,15 +254,15 @@ def render_reflections():
         
 
 def render_entry(reflection: dict):
-    """Render a single reflection entry with date, type, and question"""
+    """Render a single reflection entry with time, type, and question"""
     type_emoji = type_emojis.get(reflection["type"], "💭")
-    date_formatted = format_date(reflection.get("created_at", ""))
+    time_formatted = format_time(reflection.get("created_at", ""))
     
     # Create a clean entry layout
-    col1, col2, col3 = st.columns([1, 5, 1])
+    col1, col2, col3 = st.columns([1, 8, 1])
     
     with col1:
-        st.caption(f"📅 {date_formatted}")
+        st.caption(f"🕐 {time_formatted}")
     
     with col2:
         st.write(f"{type_emoji} {reflection["question"]}")

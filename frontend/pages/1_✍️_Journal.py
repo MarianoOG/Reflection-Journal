@@ -25,7 +25,7 @@ def api_request(method: str, endpoint: str, data: dict = None) -> Optional[dict]
     
     try:
         if method == "GET":
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, params=data)
         elif method == "PUT":
             response = requests.put(url, headers=headers, json=data)
         elif method == "POST":
@@ -46,9 +46,13 @@ def get_reflection(reflection_id: str) -> Optional[dict]:
     """Get a specific reflection by ID"""
     return api_request("GET", f"/reflections/{reflection_id}")
 
-def get_reflections() -> List[dict]:
+def get_reflections(n: int) -> List[dict]:
     """Get all reflections for the user"""
-    result = api_request("GET", "/reflections/")
+    if n <= 0:
+        n = 10  # Default to 10 if invalid number provided
+    elif n > 100:
+        n = 100  # Cap at 100 to avoid overload
+    result = api_request("GET", "/reflections/", {"limit": n})
     return result if result else []
 
 def get_reflection_parent(reflection_id: str) -> Optional[dict]:
@@ -215,13 +219,13 @@ def render_reflection_list():
             st.session_state.mode = "edit"
             st.rerun()
 
-        st.header("📚 All Reflections")
+        st.header("📚 Recent Reflections")
         
-        reflections = get_reflections()
+        reflections = get_reflections(10)
         if reflections:
-            for reflection in reflections[:10]:  # Show recent 10
+            for reflection in reflections:
                 type_emoji = type_emojis.get(reflection["type"], "💭")
-                if st.button(f"{type_emoji} {reflection['question'][:30]}...", 
+                if st.button(f"{type_emoji} {reflection['question'][:25]}...", 
                            key=f"nav_{reflection['id']}", 
                            use_container_width=True):
                     st.session_state.current_reflection_id = reflection["id"]

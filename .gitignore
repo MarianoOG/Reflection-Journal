@@ -45,3 +45,6 @@ data/
 # Data
 data/
 *.db
+
+# Claude
+CLAUDE.md

@@ -15,7 +15,7 @@ def get_database_engine():
          summary="List reflections", 
          description="Retrieves reflections owned by the authenticated user with pagination.")
 def list_reflections(offset: int = Query(0, description="Number of records to skip."), 
-                limit: int = Query(100, description="Maximum number of records to return, capped at 100."),
+                limit: int = Query(100, description="Maximum number of records to return, capped at 100.", le=100, gt=0),
                 current_user: User = Depends(get_current_user_dep)):
     """
     List reflections owned by the authenticated user with pagination.
@@ -24,13 +24,12 @@ def list_reflections(offset: int = Query(0, description="Number of records to sk
         offset (int): Number of records to skip (default: 0)
         limit (int): Maximum number of records to return (default: 100, max: 100)
     """
-    if limit > 100:
-        limit = 100
     
     with Session(get_database_engine()) as session:
         reflections = session.exec(
             select(Reflection)
             .where(Reflection.user_id == current_user.id)
+            .order_by(Reflection.created_at.desc())
             .offset(offset)
             .limit(limit)
         ).all()

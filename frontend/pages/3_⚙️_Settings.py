@@ -1,57 +1,5 @@
 import streamlit as st
-import requests
-import os
-from typing import Optional
-
-def get_user_info() -> Optional[dict]:
-    """Fetch current user information from the backend"""
-    try:
-        response = requests.get(
-            f"{st.session_state.backend_url}/users/me", 
-            headers={"Authorization": f"Bearer {st.session_state.access_token}"}
-        )
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error("Failed to fetch user information")
-            return None
-    except Exception as e:
-        st.error(f"Error fetching user info: {str(e)}")
-        return None
-
-def update_user_info(name: str, language: str) -> bool:
-    """Update user name and preferred language"""
-    try:
-        response = requests.put(
-            f"{st.session_state.backend_url}/users/me",
-            headers={"Authorization": f"Bearer {st.session_state.access_token}"},
-            json={"name": name, "prefered_language": language}
-        )
-        if response.status_code == 200:
-            st.success("Settings updated successfully!")
-            return True
-        else:
-            st.error("Failed to update settings")
-            return False
-    except Exception as e:
-        st.error(f"Error updating settings: {str(e)}")
-        return False
-
-def delete_user_account() -> bool:
-    """Delete user account"""
-    try:
-        response = requests.delete(
-            f"{st.session_state.backend_url}/users/me",
-            headers={"Authorization": f"Bearer {st.session_state.access_token}"}
-        )
-        if response.status_code == 200:
-            return True
-        else:
-            st.error("Failed to delete account")
-            return False
-    except Exception as e:
-        st.error(f"Error deleting account: {str(e)}")
-        return False
+from utils import get_user_info, update_user_info, delete_user_account
 
 def main():
     st.title("⚙️ Settings")

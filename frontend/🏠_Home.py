@@ -1,20 +1,9 @@
-import os
-import requests
 from typing import Optional
 from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 import streamlit as st
-
-# Type emojis for reflection types
-type_emojis = {
-    "Thought": "💭",
-    "Memory": "🧠",
-    "Learning": "📚",
-    "Summary": "📝",
-    "Assumption": "🤔",
-    "Blind Spot": "👁️",
-    "Contradiction": "⚖️"
-}
+from utils import type_emojis, login_user, register_user, get_reflections
+    
 
 def format_time(date_str: str) -> str:
     """Format datetime string to show just the time"""
@@ -77,32 +66,6 @@ def group_reflections_by_date(reflections):
     
     return sorted_groups
 
-def login_user(email: str, password: str) -> Optional[dict]:
-    """Login user and return token response"""
-    with st.spinner("Logging in..."):
-        response = requests.post(f"{st.session_state.backend_url}/auth/login", 
-                                json={"email": email, "password": password})
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 401:
-            st.error("Incorrect email or password")
-        else:
-            st.error("Login failed")
-        return None
-
-def register_user(name: str, email: str, password: str) -> Optional[dict]:
-    """Register new user and return user data"""
-    with st.spinner("Creating account..."):
-        response = requests.post(f"{st.session_state.backend_url}/auth/register", 
-                                json={"name": name, "email": email, "password": password})
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 409:
-            st.error("User with this email already exists")
-        else:
-            st.error("Registration failed")
-        return None
-
 def check_email(user_email: str, check_deliverability: bool = False) -> Optional[str]:
     try:
         email_info = validate_email(user_email, check_deliverability=check_deliverability)
@@ -110,25 +73,6 @@ def check_email(user_email: str, check_deliverability: bool = False) -> Optional
     except EmailNotValidError:
         st.error("Email is not valid")
         return None
-
-
-def get_reflections(limit: Optional[int] = None, offset: int = 0):
-    url = f"{st.session_state.backend_url}/reflections"
-    params = []
-    if limit:
-        params.append(f"limit={limit}")
-    if offset:
-        params.append(f"offset={offset}")
-    if params:
-        url += "?" + "&".join(params)
-    
-    response = requests.get(url, headers={"Authorization": f"Bearer {st.session_state.access_token}"})
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error("Failed to get reflections")
-        return None
-    
 
 def render_login():
     st.title("📔 Reflection Journal - Login")
@@ -306,5 +250,4 @@ def main():
 
 if __name__ == "__main__":
     st.set_page_config(page_icon="📔", page_title="Reflection Journal")
-    st.session_state.backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
     main()

@@ -1,77 +1,14 @@
-import requests
 import streamlit as st
-from typing import Optional, List
-
-sentiment_emojis = {
-    "Positive": "😊",
-    "Neutral": "😐", 
-    "Negative": "😔"
-}
-
-type_emojis = {
-    "Thought": "💭",
-    "Memory": "🧠",
-    "Learning": "📚",
-    "Summary": "📝",
-    "Assumption": "🤔",
-    "Blind Spot": "👁️",
-    "Contradiction": "⚖️"
-}
-
-def api_request(method: str, endpoint: str, data: dict = None) -> Optional[dict]:
-    """Make API request with proper authentication"""
-    url = f"{st.session_state.backend_url}{endpoint}"
-    headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
-    
-    try:
-        if method == "GET":
-            response = requests.get(url, headers=headers, params=data)
-        elif method == "PUT":
-            response = requests.put(url, headers=headers, json=data)
-        elif method == "POST":
-            response = requests.post(url, headers=headers, json=data)
-        elif method == "DELETE":
-            response = requests.delete(url, headers=headers)
-        
-        if response.status_code in [200, 201]:
-            return response.json()
-        else:
-            st.error(f"API Error: {response.status_code}")
-            return None
-    except Exception as e:
-        st.error(f"Request failed: {e}")
-        return None
-
-def get_reflection(reflection_id: str) -> Optional[dict]:
-    """Get a specific reflection by ID"""
-    return api_request("GET", f"/reflections/{reflection_id}")
-
-def get_reflections(n: int) -> List[dict]:
-    """Get all reflections for the user"""
-    if n <= 0:
-        n = 10  # Default to 10 if invalid number provided
-    elif n > 100:
-        n = 100  # Cap at 100 to avoid overload
-    result = api_request("GET", "/reflections/", {"limit": n})
-    return result if result else []
-
-def get_reflection_parent(reflection_id: str) -> Optional[dict]:
-    """Get parent reflection"""
-    return api_request("GET", f"/reflections/{reflection_id}/parent")
-
-def get_reflection_children(reflection_id: str) -> List[dict]:
-    """Get child reflections"""
-    result = api_request("GET", f"/reflections/{reflection_id}/children")
-    return result if result else []
-
-def save_reflection(reflection_data: dict) -> Optional[dict]:
-    """Save (create or update) a reflection"""
-    return api_request("PUT", "/reflections/", reflection_data)
-
-def delete_reflection(reflection_id: str) -> bool:
-    """Delete a reflection"""
-    result = api_request("DELETE", f"/reflections/{reflection_id}")
-    return result is not None
+from utils import (
+    sentiment_emojis, 
+    type_emojis, 
+    get_reflection,
+    get_reflections,
+    get_reflection_parent,
+    get_reflection_children,
+    save_reflection,
+    delete_reflection
+)
 
 def render_edit_mode(reflection: dict = None):
     """Render the edit interface"""

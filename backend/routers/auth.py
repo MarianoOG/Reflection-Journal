@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Body
 from sqlmodel import Session, select
 
 from models import User, UserCreate, UserLogin, Token, UserResponse
-from auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
+from config import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

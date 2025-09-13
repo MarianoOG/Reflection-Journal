@@ -16,7 +16,7 @@ import getpass
 from sqlmodel import Session, create_engine, select
 from config import Settings
 from models import User
-from auth import get_password_hash
+from config import get_password_hash
 
 def reset_user_password(email: str, new_password: str = None):
     """Reset password for a user by email."""

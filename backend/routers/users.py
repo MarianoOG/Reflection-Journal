@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from models import User, Reflection, ReflectionTheme, UserResponse, Theme, UserUpdate
-from auth import get_current_user_dep
+from config import get_current_user_dep
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

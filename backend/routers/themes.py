@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Depends
 from sqlmodel import Session, select
-from typing import Optional
 
 from models import User, Theme, Reflection, ReflectionTheme
-from auth import get_current_user_dep
+from config import get_current_user_dep
 
 router = APIRouter(prefix="/themes", tags=["Themes"])
 
@@ -123,3 +122,4 @@ def delete_theme(theme_id: str = Path(..., description="ID of the theme to delet
         session.delete(theme)
         session.commit()
         return {"message": "Theme and its relations deleted successfully"}
+    

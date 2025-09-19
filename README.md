@@ -1,5 +1,7 @@
 # AI Assisted Journal - Personal Growth App
 
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
 This repository is an app to a systematic approach to understanding life, making better decisions, and continuously improving. It represents my journey of personal growth and philosophical exploration.
 
 ## Core Components
@@ -65,13 +67,7 @@ DATABASE_URL=your_sqlite_database_url
    - Workflow configuration is in [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
    - Requires GCP credentials configured as repository secrets
 
-## Contributing
-
-You can contribute to the project by adding new features or fixing bugs.
-
 ## License
-
-Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
 This work is licensed under a
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].

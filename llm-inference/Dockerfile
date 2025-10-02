@@ -1,7 +1,10 @@
 # Stage 1: Download the model
 FROM python:3.12-slim AS model-downloader
-RUN pip install --no-cache-dir huggingface-hub[cli] gpt-oss
-RUN hf download openai/gpt-oss-20b --exclude "metal/*" --exclude "original/*" --local-dir /model-cache
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
+ENV HF_HOME=/model-cache
+RUN mkdir -p ${HF_HOME}
+RUN pip install --no-cache-dir huggingface-hub[hf-transfer]
+RUN hf download openai/gpt-oss-20b --exclude "metal/*" --exclude "original/*" --local-dir ${HF_HOME}
 
 
 # Stage 2: Runtime with vLLM

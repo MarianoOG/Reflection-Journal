@@ -1,7 +1,7 @@
 # Stage 1: Download the model
 FROM python:3.12-slim AS model-downloader
 RUN pip install --no-cache-dir huggingface-hub[cli] gpt-oss
-RUN hf download openai/gpt-oss-20b --exclude "metal/*" "original/*" --local-dir /model-cache
+RUN hf download openai/gpt-oss-20b --exclude "metal/*" --exclude "original/*" --local-dir /model-cache
 
 
 # Stage 2: Runtime with vLLM

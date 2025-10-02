@@ -14,6 +14,7 @@ FROM vllm/vllm-openai:v0.10.2
 COPY --from=model-downloader /model-cache /gpt-oss-20b
 
 ENV HF_HUB_OFFLINE=1
+
 EXPOSE 8080
 
 ENTRYPOINT python3 -m vllm.entrypoints.openai.api_server \

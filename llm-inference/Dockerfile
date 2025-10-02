@@ -19,6 +19,6 @@ EXPOSE 8080
 ENTRYPOINT python3 -m vllm.entrypoints.openai.api_server \
   --port 8080 \
   --model /gpt-oss-20b \
-  --gpu-memory-utilization 0.85 \
+  --gpu-memory-utilization 0.8 \
   --max-model-len 65536 \
   ${API_KEY:+--api-key "$API_KEY"}

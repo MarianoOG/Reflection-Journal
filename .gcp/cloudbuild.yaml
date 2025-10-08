@@ -2,7 +2,6 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - build
-      - '--no-cache'
       - '-t'
       - >-
         $_DEPLOY_REGION-docker.pkg.dev/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA

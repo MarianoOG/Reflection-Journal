@@ -4,7 +4,6 @@ FROM vllm/vllm-openai:v0.10.2
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 ENV HF_HOME=/gpt-oss-20b
 RUN mkdir -p ${HF_HOME}
-# RUN pip install --no-cache-dir huggingface-hub[hf-transfer]
 RUN hf download openai/gpt-oss-20b --exclude "metal/*" --exclude "original/*" --local-dir ${HF_HOME}
 
 ENV HF_HUB_OFFLINE=1

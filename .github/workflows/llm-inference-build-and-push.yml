@@ -51,7 +51,7 @@ jobs:
           --max-instances=1 \
           --cpu=4 \
           --memory=16Gi \
-          --timeout=3600 \
+          --timeout=60 \
           --gpu=1 \
           --gpu-type=nvidia-l4 \
           --project ${{ secrets.PROJECT_ID }}

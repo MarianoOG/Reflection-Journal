@@ -25,7 +25,12 @@ steps:
       - >-
         --image=$_DEPLOY_REGION-docker.pkg.dev/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA
       - '--region=$_DEPLOY_REGION'
-      - '--quiet'
+      - '--allow-unauthenticated'
+      - '--min-instances=0'
+      - '--max-instances=3'
+      - '--cpu=4'
+      - '--memory=16Gi'
+      - '--timeout=60'
     id: Deploy
     entrypoint: gcloud
 images:

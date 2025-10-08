@@ -21,7 +21,7 @@ steps:
       - run
       - services
       - update
-      - $_SERVICE_NAME
+      - $_AR_REPOSITORY-$_SERVICE_NAME
       - '--platform=managed'
       - >-
         --image=$_DEPLOY_REGION-docker.pkg.dev/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA

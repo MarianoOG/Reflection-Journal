@@ -1,0 +1,5 @@
+python-dotenv==1.0.1
+fastapi==0.115.6
+uvicorn==0.34.0
+openai==2.3.0
+google-cloud-pubsub==2.31.1

@@ -52,7 +52,6 @@ def upsert_theme(theme: Theme = Body(..., description="Theme object to upsert"),
                 raise HTTPException(status_code=403, detail="Not authorized to modify this theme")
             
             existing_theme.name = theme.name
-            existing_theme.description = theme.description
         else:
             # Ensure the theme belongs to the authenticated user
             theme.user_id = current_user.id

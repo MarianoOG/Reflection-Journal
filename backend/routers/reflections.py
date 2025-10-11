@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, Path, Query, Depends
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 
 from models import User, Theme, Reflection, ReflectionTheme
 from config import get_current_user_dep
@@ -29,7 +29,7 @@ def list_reflections(offset: int = Query(0, description="Number of records to sk
         reflections = session.exec(
             select(Reflection)
             .where(Reflection.user_id == current_user.id)
-            .order_by(Reflection.created_at.desc())
+            .order_by(desc(Reflection.created_at))
             .offset(offset)
             .limit(limit)
         ).all()

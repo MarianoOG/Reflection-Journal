@@ -77,25 +77,6 @@ def create_db_and_tables(engine):
         logging.error(f"Error creating database and tables: {e}")
         raise
 
-####################
-#    LLM Models    #
-####################
-
-class LLMBelief(SQLModel):
-    belief_type: ReflectionType
-    statement: str
-    challenge_question: str
-
-class LLMEntryAnalysis(SQLModel):
-    themes: List[str]
-    sentiment: SentimentType
-    beliefs: List[LLMBelief]
-
-class LLMSummary(SQLModel):
-    themes: List[str]
-    sentiment: SentimentType
-    main_question: str
-    answer_summary: str
 
 ####################
 #   Auth Models    #

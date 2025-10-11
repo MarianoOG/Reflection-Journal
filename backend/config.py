@@ -69,7 +69,7 @@ def verify_token(token: str, session: Session) -> Optional[User]:
     """Verify JWT token and return user."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        email: str = str(payload.get("sub"))
         if email is None:
             return None
     except JWTError:

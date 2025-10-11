@@ -18,7 +18,7 @@ from config import Settings
 from models import User
 from config import get_password_hash
 
-def reset_user_password(email: str, new_password: str = None):
+def reset_user_password(email: str, new_password: str):
     """Reset password for a user by email."""
     settings = Settings()
     engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})

@@ -1,49 +1,41 @@
-from enum import Enum
-from typing import Optional, List
-from config import Settings
 import logging
+import requests
+from typing import Optional, List
 from openai import OpenAI
-from pydantic import BaseModel
-
-settings = Settings()
+from models import QnAPair, LLMEntryAnalysis, LLMSummary
+from config import settings
 
 # Initialize OpenAI client with vLLM compatible endpoint
 client = OpenAI(
-    base_url=settings.LLM_INFERENCE_URL,
+    base_url=settings.LLM_INFERENCE_URL + "/v1",
     api_key=settings.LLM_INFERENCE_API_KEY
 )
 
 
-####################
-#    LLM Models    #
-####################
+def ping_llm() -> bool:
+    """
+    Ping the LLM inference service to check if it's available.
 
-class SentimentType(str, Enum):
-    POSITIVE = "Positive"
-    NEUTRAL = "Neutral"
-    NEGATIVE = "Negative"
+    Uses a 2-second timeout - enough for normal responses (<0.5s) plus
+    network variance, but fails fast if service is cold (which takes ~3 minutes).
+    The background keep-warm task will eventually catch the service when ready.
 
-class QnAPair(BaseModel):
-    question: str
-    answer: str
-
-class LLMBelief(BaseModel):
-    statement: str
-    challenge_question: str
-
-class LLMEntryAnalysis(BaseModel):
-    themes: List[str]
-    sentiment: SentimentType
-    beliefs: List[LLMBelief]
-
-class LLMSummary(BaseModel):
-    main_question: str
-    answer_summary: str
-
-
-####################
-#   LLM Functions  #
-####################
+    Returns:
+        bool: True if the service responds with 200 OK, False otherwise
+    """
+    try:
+        response = requests.get(
+            f'{settings.LLM_INFERENCE_URL}/ping',
+            headers={'accept': '*/*'},
+            timeout=2
+        )
+        return response.status_code == 200
+    except requests.exceptions.Timeout:
+        logging.warning("LLM service ping timed out after 2s (service may be cold)")
+        return False
+    except Exception as e:
+        logging.error(f"Error pinging LLM service: {e}")
+        return False
 
 
 def analyze_reflection(reflection: QnAPair) -> Optional[LLMEntryAnalysis]:
@@ -103,74 +95,10 @@ def summarize_reflections(reflections: List[QnAPair]) -> Optional[LLMSummary]:
             ],
             text_format=LLMSummary,
             temperature=0.0,
-            max_output_tokens=1000,
-            reasoning={ "effort": "low" }
+            max_output_tokens=2000,
+            reasoning={ "effort": "high" }
         )
     except Exception as e:
         logging.error(f"Unexpected error: {str(e)}")
         return None
     return response.output_parsed
-
-
-####################
-#      Testing     #
-####################
-
-if __name__ == "__main__":
-    # Configure logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    # Test 1: analyze_reflection
-    print("\n" + "="*50)
-    print("Testing analyze_reflection")
-    print("="*50)
-
-    test_reflection = QnAPair(
-        question="What am I most grateful for today?",
-        answer="""I'm grateful for the conversation I had with my mentor today.
-        They helped me realize that I've been procrastinating on my project because
-        I'm afraid of failure. I always assumed that being busy meant I was being productive,
-        but that's not always true. I need to focus on what truly matters."""
-    )
-
-    analysis = analyze_reflection(test_reflection)
-    if analysis:
-        print(f"\nThemes: {analysis.themes}")
-        print(f"Sentiment: {analysis.sentiment}")
-        print(f"\nBeliefs ({len(analysis.beliefs)} found):")
-        for i, belief in enumerate(analysis.beliefs, 1):
-            print(f"\n{i}. Statement: {belief.statement}")
-            print(f"   Challenge: {belief.challenge_question}")
-    else:
-        print("Analysis failed!")
-
-    # Test 2: summarize_reflections
-    print("\n" + "="*50)
-    print("Testing summarize_reflections")
-    print("="*50)
-
-    test_reflections = [
-        QnAPair(
-            question="What did I learn from today's challenge?",
-            answer="I learned that asking for help is not a weakness. When I finally asked my colleague for assistance, we solved the problem in 30 minutes instead of me struggling alone for hours."
-        ),
-        QnAPair(
-            question="What assumption did I challenge today?",
-            answer="I challenged my assumption that I need to know everything before starting. I started the project with incomplete knowledge and learned as I went."
-        ),
-        QnAPair(
-            question="What would I do differently?",
-            answer="I would reach out for help sooner and not wait until I'm completely stuck. Collaboration makes everything easier."
-        )
-    ]
-
-    summary = summarize_reflections(test_reflections)
-    if summary:
-        print(f"\nMain Question: {summary.main_question}")
-        print(f"\nAnswer Summary: {summary.answer_summary}")
-    else:
-        print("Summary failed!")
-
-    print("\n" + "="*50)
-    print("Testing completed!")
-    print("="*50)

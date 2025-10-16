@@ -1,4 +1,12 @@
 services:
+  ai-worker:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8080"
+    volumes:
+      - ./ai-worker/.env:/app/.env
   backend:
     build:
       context: ./backend
@@ -8,6 +16,8 @@ services:
     volumes:
       - ./backend/db:/app/db
       - ./backend/.env:/app/.env
+    depends_on:
+      - ai-worker
   frontend:
     build:
       context: ./frontend

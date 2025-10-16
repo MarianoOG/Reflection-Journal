@@ -26,8 +26,8 @@ async def lifespan(_: FastAPI):
     database_engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
-app.title = "Reflexion Journal"
-app.version = "0.0.1"
+app.title = "Reflexion Journal - Backend"
+app.version = "0.0.2"
 
 # Include routers
 app.include_router(themes.router)

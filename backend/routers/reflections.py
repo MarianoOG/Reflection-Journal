@@ -52,7 +52,6 @@ def upsert_reflection(reflection: Reflection = Body(..., description="Reflection
             
             existing_reflection.parent_id = reflection.parent_id
             existing_reflection.language = reflection.language
-            existing_reflection.type = reflection.type
             existing_reflection.sentiment = reflection.sentiment
             existing_reflection.context = reflection.context
             existing_reflection.question = reflection.question

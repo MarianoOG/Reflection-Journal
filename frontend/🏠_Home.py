@@ -2,7 +2,7 @@ from typing import Optional
 from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 import streamlit as st
-from utils import type_emojis, login_user, register_user, get_reflections
+from utils import login_user, register_user, get_reflections
     
 
 def format_time(date_str: str) -> str:
@@ -198,19 +198,20 @@ def render_reflections():
         
 
 def render_entry(reflection: dict):
-    """Render a single reflection entry with time, type, and question"""
-    type_emoji = type_emojis.get(reflection["type"], "💭")
+    """Render a single reflection entry with time and question"""
     time_formatted = format_time(reflection.get("created_at", ""))
-    
+
     # Create a clean entry layout
     col1, col2, col3 = st.columns([1, 8, 1])
-    
+
     with col1:
         st.caption(f"🕐 {time_formatted}")
-    
+
     with col2:
-        st.write(f"{type_emoji} {reflection["question"]}")
-    
+        # Show emoji based on whether it's a parent (user entry) or child (AI question)
+        emoji = "🤔" if reflection.get("parent_id") else "💭"
+        st.write(f"{emoji} {reflection["question"]}")
+
     with col3:
         # Make the question clickable to navigate to journal
         if st.button("➤", 

@@ -14,15 +14,6 @@ class Languages(str, Enum):
     ES = "es"
     CZ = "cz"
 
-class ReflectionType(str, Enum):
-    THOUGHT = "Thought"
-    MEMORY = "Memory"
-    LEARNING = "Learning"
-    SUMMARY = "Summary"
-    ASSUMPTION = "Assumption"
-    BLIND_SPOT = "Blind Spot"
-    CONTRADICTION = "Contradiction"
-
 class SentimentType(str, Enum):
     POSITIVE = "Positive"
     NEUTRAL = "Neutral"
@@ -51,7 +42,6 @@ class Reflection(SQLModel, table=True):
 
     # Metadata
     language: Languages = Field(default=Languages.EN)
-    type: ReflectionType = Field(default=ReflectionType.THOUGHT)
     sentiment: SentimentType = Field(default=SentimentType.NEUTRAL)
     context: Optional[str] = Field(default=None, max_length=500)
     

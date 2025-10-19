@@ -1,7 +1,6 @@
 import streamlit as st
 from utils import (
-    sentiment_emojis, 
-    type_emojis, 
+    sentiment_emojis,
     get_reflection,
     get_reflections,
     get_reflection_parent,
@@ -50,7 +49,6 @@ def render_edit_mode(reflection: dict = None):
                 return
             
             reflection_data = {
-                "type": reflection.get("type", "") if reflection else "Thought",
                 "language": reflection.get("language", "") if reflection else "en",
                 "sentiment": reflection.get("sentiment", "") if reflection else "Neutral",
                 "parent_id": reflection.get("parent_id", "") if reflection else None,
@@ -84,17 +82,10 @@ def render_view_mode(reflection: dict):
         st.markdown(reflection["answer"])
     else:
         st.warning("No reflection content yet. Click Edit to add your thoughts.")
-    
-    # Render type and sentiment
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        type_emoji = type_emojis.get(reflection["type"], "💭")
-        st.metric("Type", f"{type_emoji} {reflection['type']}")
-    
-    with col2:
-        sentiment_emoji = sentiment_emojis.get(reflection["sentiment"], "😐")
-        st.metric("Sentiment", f"{sentiment_emoji} {reflection["sentiment"]}")
+
+    # Render sentiment
+    sentiment_emoji = sentiment_emojis.get(reflection["sentiment"], "😐")
+    st.metric("Sentiment", f"{sentiment_emoji} {reflection['sentiment']}")
 
     render_actions(reflection)
     
@@ -161,9 +152,10 @@ def render_reflection_list():
         reflections = get_reflections(10)
         if reflections:
             for reflection in reflections:
-                type_emoji = type_emojis.get(reflection["type"], "💭")
-                if st.button(f"{type_emoji} {reflection['question'][:25]}...", 
-                           key=f"nav_{reflection['id']}", 
+                # Show emoji based on whether it's a parent (user entry) or child (AI question)
+                emoji = "🤔" if reflection.get("parent_id") else "💭"
+                if st.button(f"{emoji} {reflection['question'][:25]}...",
+                           key=f"nav_{reflection['id']}",
                            use_container_width=True):
                     st.session_state.current_reflection_id = reflection["id"]
                     st.session_state.mode = "view"

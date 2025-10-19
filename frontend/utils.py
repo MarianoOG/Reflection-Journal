@@ -7,18 +7,8 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 sentiment_emojis = {
     "Positive": "😊",
-    "Neutral": "😐", 
+    "Neutral": "😐",
     "Negative": "😔"
-}
-
-type_emojis = {
-    "Thought": "💭",
-    "Memory": "🧠",
-    "Learning": "📚",
-    "Summary": "📝",
-    "Assumption": "🤔",
-    "Blind Spot": "👁️",
-    "Contradiction": "⚖️"
 }
     
 def login_user(email: str, password: str) -> Optional[dict]:

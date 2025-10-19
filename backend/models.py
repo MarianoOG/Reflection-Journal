@@ -85,11 +85,11 @@ def create_db_and_tables(engine):
 class UserCreate(SQLModel):
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=1, max_length=500)
-    password: str = Field(min_length=8, max_length=100)
+    password: str = Field(min_length=8, max_length=32)
 
 class UserLogin(SQLModel):
     email: str = Field(min_length=1, max_length=500)
-    password: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=8, max_length=32)
 
 class Token(SQLModel):
     access_token: str

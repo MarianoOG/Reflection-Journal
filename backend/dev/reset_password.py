@@ -13,10 +13,14 @@ Usage:
 import sys
 import argparse
 import getpass
+from pathlib import Path
 from sqlmodel import Session, create_engine, select
-from config import Settings
+
+# Add parent directory to path so we can import backend modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import Settings, get_password_hash
 from models import User
-from config import get_password_hash
 
 def reset_user_password(email: str, new_password: str):
     """Reset password for a user by email."""
@@ -34,20 +38,25 @@ def reset_user_password(email: str, new_password: str):
         print(f"👤 Found user: {user.name} ({user.email})")
         print(f"📅 Created: {user.created_at}")
         print(f"🕐 Last login: {user.last_login}")
-        
+
         # Get new password if not provided
         if not new_password:
             print("\n🔐 Enter new password for this user:")
             new_password = getpass.getpass("New password: ")
-            
-            if len(new_password) < 8:
-                print("❌ Password must be at least 8 characters long.")
+
+            if len(new_password) < 8 or len(new_password) > 32:
+                print("❌ Password must be between 8 and 32 characters in length.")
                 return False
-            
+
             confirm_password = getpass.getpass("Confirm password: ")
-            
+
             if new_password != confirm_password:
                 print("❌ Passwords don't match.")
+                return False
+        else:
+            # Validate password provided via command line
+            if len(new_password) < 8 or len(new_password) > 32:
+                print("❌ Password must be between 8 and 32 characters in length.")
                 return False
         
         # Hash and update password

@@ -37,7 +37,7 @@ def main():
     
     # Update button
     if st.button("💾 Save Changes", type="primary"):
-        if update_user_info(name, selected_language):
+        if name and update_user_info(name, selected_language):
             st.rerun()
     
     st.divider()

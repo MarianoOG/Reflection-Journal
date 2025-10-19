@@ -1,6 +1,6 @@
 import os
 import requests
-from typing import Optional, List
+from typing import Optional, Union, List
 import streamlit as st
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
@@ -97,7 +97,7 @@ def delete_user_account() -> bool:
         st.error(f"Error deleting account: {str(e)}")
         return False
 
-def api_request(method: str, endpoint: str, data: dict = None) -> Optional[dict]:
+def api_request(method: str, endpoint: str, data: Optional[dict] = None) -> Optional[dict]:
     """Make API request with proper authentication"""
     url = f"{BACKEND_URL}{endpoint}"
     headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
@@ -111,6 +111,8 @@ def api_request(method: str, endpoint: str, data: dict = None) -> Optional[dict]
             response = requests.post(url, headers=headers, json=data)
         elif method == "DELETE":
             response = requests.delete(url, headers=headers)
+        else:
+            return None
         
         if response.status_code in [200, 201]:
             return response.json()

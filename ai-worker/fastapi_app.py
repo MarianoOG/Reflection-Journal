@@ -1,10 +1,35 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Security
+from fastapi.security import APIKeyHeader
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
 from models import QnAPair, LLMEntryAnalysis
 from llm_inference import analyze_reflection, ping_llm
-from config import logger
+from config import logger, settings
+
+# API Key security
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    """
+    Validate API key from request header.
+
+    Raises:
+        HTTPException: 401 if API key is missing or invalid
+    """
+    if api_key is None:
+        raise HTTPException(
+            status_code=401,
+            detail="API Key required. Please provide X-API-Key header."
+        )
+
+    if api_key != settings.AI_WORKER_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API Key"
+        )
+
+    return api_key
 
 
 async def keep_llm_warm():
@@ -111,7 +136,7 @@ def health_check():
 @app.post("/analyze",
           tags=["Analysis"],
           summary="Analyze Reflection",
-          description="Analyzes a reflection question and answer pair, extracting themes, sentiment, and beliefs with challenge questions.",
+          description="Analyzes a reflection question and answer pair, extracting themes, sentiment, and beliefs with challenge questions. Requires API key authentication.",
           response_model=LLMEntryAnalysis)
 def analyze_reflection_endpoint(
     reflection: QnAPair = Body(
@@ -122,7 +147,8 @@ def analyze_reflection_endpoint(
                 "answer": "Finished the API integration and deployed to staging. Took longer than expected due to auth issues."
             }
         ]
-    )
+    ),
+    api_key: str = Security(verify_api_key)
 ):
     result = analyze_reflection(reflection)
 

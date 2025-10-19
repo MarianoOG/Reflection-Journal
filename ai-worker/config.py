@@ -14,7 +14,8 @@ if os.path.exists(".env"):
 class Settings:
     LLM_INFERENCE_URL: str = os.getenv("LLM_INFERENCE_URL", "")
     LLM_INFERENCE_API_KEY: str = os.getenv("LLM_INFERENCE_API_KEY", "")
-    LLM_INFERENCE_MODEL_NAME: str = os.getenv("LLM_INFERENCE_MODEL_NAME", "") 
+    LLM_INFERENCE_MODEL_NAME: str = os.getenv("LLM_INFERENCE_MODEL_NAME", "")
+    AI_WORKER_API_KEY: str = os.getenv("AI_WORKER_API_KEY", "your-secret-key-change-this-in-production") 
     
 # Global settings
 settings = Settings()

@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from typing import Optional
@@ -9,6 +10,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from models import User
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+
 # Load environment variables from .env file
 if os.path.exists(".env"):
     load_dotenv()
@@ -17,6 +22,8 @@ if os.path.exists(".env"):
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///db/reflexion.db")
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
+    AI_WORKER_URL: str = os.getenv("AI_WORKER_URL", "http://ai-worker:8080")
+    AI_WORKER_API_KEY: str = os.getenv("AI_WORKER_API_KEY", "your-secret-key-change-this-in-production")
 
 # Global settings
 settings = Settings()

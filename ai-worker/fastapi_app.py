@@ -1,19 +1,15 @@
 from fastapi import FastAPI, HTTPException, Body
 import uvicorn
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 from models import QnAPair, LLMEntryAnalysis
-from llm import analyze_reflection, ping_llm
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from llm_inference import analyze_reflection, ping_llm
+from config import logger
 
 
 async def keep_llm_warm():
     """
-    Background task that pings the LLM service every 3 minutes
+    Background task that pings the LLM service every 5 minutes
     to prevent cold starts and keep the service responsive.
     """
     logger.info("Starting LLM keep-warm background task")
@@ -25,7 +21,7 @@ async def keep_llm_warm():
                 logger.info("LLM service ping successful")
             else:
                 logger.warning("LLM service ping failed")
-            await asyncio.sleep(180)  # 3 minutes
+            await asyncio.sleep(300)  # 5 minutes
         except asyncio.CancelledError:
             logger.info("Keep-warm task cancelled")
             break
@@ -64,6 +60,23 @@ app.version = "0.0.1"
          description="Returns a welcome message including the application title and version.")
 def root():
     return {"message": f"Welcome to {app.title} v{app.version}"}
+
+
+@app.get("/ping",
+         tags=["Health"],
+         summary="Ping Endpoint",
+         description="Lightweight ping endpoint for keep-warm checks. Returns immediately without checking LLM service.")
+def ping():
+    """
+    Simple ping endpoint for keep-warm functionality.
+
+    This endpoint provides a fast response without checking downstream services,
+    making it suitable for frequent health checks to prevent cold starts.
+
+    Returns:
+        - 200 OK with pong message
+    """
+    return {"status": "ok", "message": "pong"}
 
 
 @app.get("/health",

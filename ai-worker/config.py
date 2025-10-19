@@ -1,5 +1,10 @@
 import os
+import logging
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 
 # Load environment variables from .env file
 if os.path.exists(".env"):

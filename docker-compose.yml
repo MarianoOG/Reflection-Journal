@@ -16,6 +16,8 @@ services:
     volumes:
       - ./backend/db:/app/db
       - ./backend/.env:/app/.env
+    environment:
+      AI_WORKER_URL: http://ai-worker:8080
     depends_on:
       - ai-worker
   frontend:

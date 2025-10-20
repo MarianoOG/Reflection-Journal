@@ -1,3 +1,10 @@
 [theme]
 base="dark"
 primaryColor="#2272BC"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "none"

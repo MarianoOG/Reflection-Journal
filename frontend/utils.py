@@ -147,3 +147,8 @@ def delete_reflection(reflection_id: str) -> bool:
     """Delete a reflection"""
     result = api_request("DELETE", f"/reflections/{reflection_id}")
     return result is not None
+
+def get_reflection_themes(reflection_id: str) -> List[dict]:
+    """Get themes associated with a reflection"""
+    result = api_request("GET", f"/reflections/{reflection_id}/themes")
+    return result if result else []

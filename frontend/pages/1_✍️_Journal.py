@@ -1,3 +1,4 @@
+from typing import Optional
 import streamlit as st
 from utils import (
     sentiment_emojis,
@@ -5,11 +6,12 @@ from utils import (
     get_reflections,
     get_reflection_parent,
     get_reflection_children,
+    get_reflection_themes,
     save_reflection,
     delete_reflection
 )
 
-def render_edit_mode(reflection: dict = None):
+def render_edit_mode(reflection: Optional[dict] = None):
     """Render the edit interface"""
     
     with st.form("reflection_form"):
@@ -17,15 +19,12 @@ def render_edit_mode(reflection: dict = None):
             st.write(reflection.get('question'))
             if reflection.get("context"):
                 st.caption(f"Context: {reflection.get('context')}")
-        else:
-            st.write("Write your thoughts...")
 
         answer = st.text_area(
-            "Your Reflection",
+            "Write your thoughts, memories or answers",
             value=reflection.get("answer", "") if reflection else "",
             max_chars=2000,
-            height=400,
-            help="Your thoughts, insights, or answers"
+            height=400
         )
 
         _, col1, col2 = st.columns([1, 1, 1])
@@ -72,27 +71,42 @@ def render_edit_mode(reflection: dict = None):
 
 def render_view_mode(reflection: dict):
     """Render the view interface"""
-    # Subtitle
-    st.subheader(f"{reflection['question']}")
-    if reflection.get("context"):
-        st.caption(f"Context: {reflection['context']}")
-    
-    # Answer
-    if reflection.get("answer"):
-        st.markdown(reflection["answer"])
-    else:
-        st.warning("No reflection content yet. Click Edit to add your thoughts.")
+    col1, col2 = st.columns([3, 1])
 
+    with col1:
+        # Subtitle
+        st.subheader(f"{reflection['question']}")
+        if reflection.get("context"):
+            st.caption(f"Context: {reflection['context']}")
+        
+        # Answer
+        if reflection.get("answer"):
+            st.markdown(reflection["answer"])
+        else:
+            st.warning("No reflection content yet. Click Edit to add your thoughts.")
+
+        # Render actions
+        render_actions(reflection)
+
+    with col2:   
+        render_metadata(reflection)
+
+
+def render_metadata(reflection: dict):
     # Render sentiment
     sentiment_emoji = sentiment_emojis.get(reflection["sentiment"], "😐")
     st.metric("Sentiment", f"{sentiment_emoji} {reflection['sentiment']}")
 
-    render_actions(reflection)
-    
-    render_relationships(reflection)
+    # Render themes
+    themes = get_reflection_themes(reflection["id"])
+    if themes:
+        with st.expander("🏷️ Themes", expanded=True):
+            for theme in themes:
+                st.markdown(f"• {theme['name']}")
+    else:
+        st.info("No themes assigned")
 
-def render_relationships(reflection: dict):
-    """Render parent and children relationships"""
+    # Render parent and children relationships
     st.markdown("### 🔗 Relationships")
     
     with st.expander("⬆️ Parent"):
@@ -214,6 +228,7 @@ def main():
         render_edit_mode(base_reflection if base_reflection else None)
 
 if __name__ == "__main__":
+    st.set_page_config(layout="wide", page_icon="✍️", page_title="Journal")
     if "access_token" not in st.session_state:
         st.switch_page("🏠_Home.py")
     main()

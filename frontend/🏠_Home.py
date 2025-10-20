@@ -250,5 +250,5 @@ def main():
             st.rerun()
 
 if __name__ == "__main__":
-    st.set_page_config(page_icon="📔", page_title="Reflection Journal")
+    st.set_page_config(layout="centered", page_icon="📔", page_title="Reflection Journal")
     main()

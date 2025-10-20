@@ -74,7 +74,8 @@ def main():
                         del st.session_state[key]
                 st.switch_page("🏠_Home.py")
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
+    st.set_page_config(layout="centered", page_icon="⚙️", page_title="Settings")
     if "access_token" not in st.session_state:
         st.switch_page("🏠_Home.py")
     main()

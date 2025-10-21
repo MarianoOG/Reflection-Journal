@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Body, Path, Query, Depends
 from sqlmodel import Session, select, desc
+import requests
 
 from models import User, Theme, Reflection, ReflectionTheme
-from config import get_current_user_dep
+from config import get_current_user_dep, settings
 
 router = APIRouter(prefix="/reflections", tags=["Reflections"])
 
@@ -10,6 +11,7 @@ def get_database_engine():
     """Get the database engine from the main app context"""
     from fastapi_app import database_engine
     return database_engine
+
 
 @router.get("/", 
          summary="List reflections", 
@@ -34,6 +36,7 @@ def list_reflections(offset: int = Query(0, description="Number of records to sk
             .limit(limit)
         ).all()
         return reflections
+
 
 @router.put("/", 
          summary="Upsert a reflection", 
@@ -64,6 +67,7 @@ def upsert_reflection(reflection: Reflection = Body(..., description="Reflection
         session.refresh(existing_reflection if existing_reflection else reflection)
         return existing_reflection if existing_reflection else reflection
 
+
 @router.get("/{reflection_id}", 
          summary="Get a reflection", 
          description="Retrieves a reflection by its unique identifier for the authenticated user.")
@@ -81,6 +85,7 @@ def get_reflection(reflection_id: str = Path(..., description="Unique identifier
             raise HTTPException(status_code=403, detail="Not authorized to access this reflection")
         
         return reflection
+
 
 @router.get("/{reflection_id}/parent", 
          summary="Get reflection parent", 
@@ -111,6 +116,7 @@ def get_reflection_parent(reflection_id: str = Path(..., description="Identifier
         
         return parent
 
+
 @router.get("/{reflection_id}/children", 
          summary="Get reflection children", 
          description="Retrieves all child reflections for the given reflection for the authenticated user.")
@@ -132,6 +138,7 @@ def get_reflection_children(reflection_id: str = Path(..., description="Identifi
             select(Reflection).where(Reflection.parent_id == reflection_id).where(Reflection.user_id == current_user.id)
         ).all()
         return children
+
 
 @router.get("/{reflection_id}/themes", 
          summary="Get reflection themes", 
@@ -166,6 +173,7 @@ def get_reflection_themes(reflection_id: str = Path(..., description="Unique ide
                 themes.append(theme)
         
         return themes
+
 
 @router.post("/{reflection_id}/themes/{theme_id}", 
             summary="Connect theme to reflection", 
@@ -214,6 +222,7 @@ def connect_theme_to_reflection(reflection_id: str = Path(..., description="Uniq
         
         return {"message": "Theme connected to reflection successfully", "connection_id": reflection_theme.id}
 
+
 @router.delete("/{reflection_id}/themes/{theme_id}", 
               summary="Disconnect theme from reflection", 
               description="Removes the connection between a reflection and a theme, both owned by the authenticated user.")
@@ -256,8 +265,124 @@ def disconnect_theme_from_reflection(reflection_id: str = Path(..., description=
         
         return {"message": "Theme disconnected from reflection successfully"}
 
-@router.delete("/{reflection_id}", 
-            summary="Delete reflection", 
+
+@router.post("/{reflection_id}/analyze",
+            summary="Analyze reflection",
+            description="Analyzes a reflection using the AI Worker service, updates sentiment/themes, and creates child reflections from follow-up questions.")
+def analyze_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection to analyze"), 
+                       current_user: User = Depends(get_current_user_dep)):
+    """
+    Analyze a reflection by calling the AI Worker service.
+
+    This endpoint:
+    1. Fetches the reflection
+    2. Calls the AI Worker /analyze endpoint with the question/answer
+    3. Updates the reflection with sentiment and themes
+    4. Creates/joins themes to the reflection
+    5. Creates child reflections from follow-up questions
+
+    Args:
+        reflection_id (str): The ID of the reflection to analyze
+
+    Returns:
+        dict: The updated reflection with analysis results
+    """
+    with Session(get_database_engine()) as session:
+        # Verify reflection exists and is owned by user
+        reflection = session.get(Reflection, reflection_id)
+        if not reflection:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+
+        # Verify ownership
+        if reflection.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to analyze this reflection")
+
+        # Prepare the QnA pair for the AI Worker
+        qna_data = {
+            "id": reflection.id,
+            "question": reflection.question,
+            "answer": reflection.answer or ""
+        }
+
+        # Call the AI Worker analyze endpoint
+        try:
+            response = requests.post(
+                f"{settings.AI_WORKER_URL}/analyze",
+                json=qna_data,
+                headers={"X-API-Key": settings.AI_WORKER_API_KEY},
+                timeout=300
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise HTTPException(status_code=503, detail=f"AI Worker service error: {str(e)}")
+
+        analysis_results = response.json()
+
+        # The response should be an array with AnalysisResponse at index 0 and FollowUpResponse objects at indices 1+
+        if not isinstance(analysis_results, list) or len(analysis_results) == 0:
+            raise HTTPException(status_code=502, detail="Invalid response from AI Worker service")
+
+        analysis = analysis_results[0]
+        follow_ups = analysis_results[1:] if len(analysis_results) > 1 else []
+
+        # Update the reflection with sentiment
+        if "sentiment" in analysis:
+            reflection.sentiment = analysis["sentiment"]
+
+        # Process themes
+        theme_names = analysis.get("themes", [])
+        for theme_name in theme_names:
+            # Find or create theme
+            existing_theme = session.exec(
+                select(Theme).where(Theme.name == theme_name).where(Theme.user_id == current_user.id)
+            ).first()
+
+            if existing_theme:
+                theme = existing_theme
+            else:
+                theme = Theme(name=theme_name, user_id=current_user.id)
+                session.add(theme)
+                session.flush()  # Flush to get the ID
+
+            # Check if connection already exists
+            existing_connection = session.exec(
+                select(ReflectionTheme)
+                .where(ReflectionTheme.reflection_id == reflection_id)
+                .where(ReflectionTheme.theme_id == theme.id)
+            ).first()
+
+            # Create connection if it doesn't exist
+            if not existing_connection:
+                reflection_theme = ReflectionTheme(
+                    reflection_id=reflection_id,
+                    theme_id=theme.id
+                )
+                session.add(reflection_theme)
+
+        # Create child reflections from follow-ups
+        for follow_up in follow_ups:
+            child_reflection = Reflection(
+                user_id=current_user.id,
+                parent_id=reflection_id,
+                question=follow_up.get("question", ""),
+                context=follow_up.get("context", ""),
+                language=reflection.language
+            )
+            session.add(child_reflection)
+
+        # Commit all changes
+        session.commit()
+        session.refresh(reflection)
+
+        return {
+            "sentiment": reflection.sentiment,
+            "themes": theme_names,
+            "follow_ups_created": len(follow_ups)
+        }
+
+
+@router.delete("/{reflection_id}",
+            summary="Delete reflection",
             description="Deletes a reflection owned by the authenticated user and reassigns its children to its parent if applicable.")
 def delete_reflection(reflection_id: str = Path(..., description="Unique identifier of the reflection to delete"), current_user: User = Depends(get_current_user_dep)):
     """

@@ -8,7 +8,9 @@ from utils import (
     get_reflection_children,
     get_reflection_themes,
     save_reflection,
-    delete_reflection
+    delete_reflection,
+    analyze_reflection,
+    truncate_text
 )
 
 def render_edit_mode(reflection: Optional[dict] = None):
@@ -109,24 +111,25 @@ def render_metadata(reflection: dict):
     # Render parent and children relationships
     st.markdown("### 🔗 Relationships")
     
-    with st.expander("⬆️ Parent"):
-        parent = get_reflection_parent(reflection["id"])
-        if parent:
-            if st.button(f"{parent['question'][:50]}...", key="parent_btn"):
-                st.session_state.current_reflection_id = parent["id"]
-                st.rerun()
-        else:
-            st.info("This entry has no parent")
+    # Render parent
+    parent = get_reflection_parent(reflection["id"])
+    if parent:
+        if st.button(f"⬆️ PARENT: {truncate_text(parent['question'], 50)}", key="parent_btn"):
+            st.session_state.current_reflection_id = parent["id"]
+            st.rerun()
+    else:
+        st.info("This entry has no parent")
 
-    with st.expander("⬇️ Children"):
-        children = get_reflection_children(reflection["id"])
-        if children:
+    # Render Children
+    children = get_reflection_children(reflection["id"])
+    if children:
+        with st.expander(f"⬇️ Children ({len(children)})"):
             for i, child in enumerate(children):
-                if st.button(f"{child['question'][:50]}...", key=f"child_{i}"):
+                if st.button(f"{truncate_text(child['question'], 35)}", key=f"child_{i}"):
                     st.session_state.current_reflection_id = child["id"]
                     st.rerun()
-        else:
-            st.info("This entry has no children")
+    else:
+        st.info("This entry has no children")
 
 def render_actions(reflection: dict):
     """Render action buttons"""
@@ -138,10 +141,9 @@ def render_actions(reflection: dict):
             st.rerun()
 
     with col2:
-        if st.button("👶 Add Child", disabled=True, use_container_width=True):
-            st.session_state.current_reflection_id = None
-            st.session_state.parent_id = reflection["id"]
-            st.session_state.mode = "edit"
+        if st.button("🔍 Analyze", use_container_width=True, disabled=not reflection.get("answer")):
+            with st.spinner("Analyzing your reflection..."):
+                analyze_reflection(reflection["id"])
             st.rerun()
 
     with col3:
@@ -168,7 +170,7 @@ def render_reflection_list():
             for reflection in reflections:
                 # Show emoji based on whether it's a parent (user entry) or child (AI question)
                 emoji = "🤔" if reflection.get("parent_id") else "💭"
-                if st.button(f"{emoji} {reflection['question'][:25]}...",
+                if st.button(f"{emoji} {truncate_text(reflection['question'], 30)}",
                            key=f"nav_{reflection['id']}",
                            use_container_width=True):
                     st.session_state.current_reflection_id = reflection["id"]

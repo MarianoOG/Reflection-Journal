@@ -152,3 +152,13 @@ def get_reflection_themes(reflection_id: str) -> List[dict]:
     """Get themes associated with a reflection"""
     result = api_request("GET", f"/reflections/{reflection_id}/themes")
     return result if result else []
+
+def analyze_reflection(reflection_id: str) -> Optional[dict]:
+    """Analyze a reflection using the AI backend service"""
+    return api_request("POST", f"/reflections/{reflection_id}/analyze")
+
+def truncate_text(text: str, n: int):
+    truncated_text = text[:n]
+    if len(text) > n:
+        truncated_text += '...'
+    return truncated_text

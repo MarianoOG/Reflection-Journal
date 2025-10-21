@@ -8,6 +8,7 @@ class SentimentType(str, Enum):
     NEGATIVE = "Negative"
 
 class QnAPair(BaseModel):
+    id: str
     question: str
     answer: str
 
@@ -23,3 +24,14 @@ class LLMEntryAnalysis(BaseModel):
 class LLMSummary(BaseModel):
     main_question: str
     answer_summary: str
+
+class AnalysisResponse(BaseModel):
+    # Tree structure
+    id: str
+    sentiment: SentimentType
+    themes: List[str]
+
+class FollowUpResponse(BaseModel):
+    parent_id: str
+    question: str
+    context: str

@@ -1,9 +1,10 @@
+from typing import List, Union
 from fastapi import FastAPI, HTTPException, Body, Security
 from fastapi.security import APIKeyHeader
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
-from models import QnAPair, LLMEntryAnalysis
+from models import QnAPair, AnalysisResponse, FollowUpResponse
 from llm_inference import analyze_reflection, ping_llm
 from config import logger, settings
 
@@ -137,12 +138,13 @@ def health_check():
           tags=["Analysis"],
           summary="Analyze Reflection",
           description="Analyzes a reflection question and answer pair, extracting themes, sentiment, and beliefs with challenge questions. Requires API key authentication.",
-          response_model=LLMEntryAnalysis)
+          response_model=List[Union[AnalysisResponse, FollowUpResponse]])
 def analyze_reflection_endpoint(
     reflection: QnAPair = Body(
         description="A reflection entry containing a question and its corresponding answer to be analyzed",
         examples=[
             {
+                "id": "abc123",
                 "question": "What did I accomplish today?",
                 "answer": "Finished the API integration and deployed to staging. Took longer than expected due to auth issues."
             }
@@ -157,7 +159,26 @@ def analyze_reflection_endpoint(
             status_code=500,
             detail="Failed to analyze reflection. Please check logs for details."
         )
-    return result
+    
+    response = list()
+    response.append(
+        AnalysisResponse(
+            id = reflection.id,
+            sentiment = result.sentiment,
+            themes = result.themes
+        )
+    )
+
+    for belief in result.beliefs:
+        response.append(
+            FollowUpResponse(
+                parent_id = reflection.id,
+                question = belief.challenge_question,
+                context = belief.statement
+            )
+        )
+
+    return response
 
 
 if __name__ == "__main__":

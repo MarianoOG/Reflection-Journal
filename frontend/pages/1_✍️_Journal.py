@@ -114,7 +114,7 @@ def render_metadata(reflection: dict):
     # Render parent
     parent = get_reflection_parent(reflection["id"])
     if parent:
-        if st.button(f"⬆️ PARENT: {truncate_text(parent['question'], 50)}", key="parent_btn"):
+        if st.button(f"⬆️ PARENT: {truncate_text(parent['question'], 65)}", key="parent_btn"):
             st.session_state.current_reflection_id = parent["id"]
             st.rerun()
     else:
@@ -170,7 +170,7 @@ def render_reflection_list():
             for reflection in reflections:
                 # Show emoji based on whether it's a parent (user entry) or child (AI question)
                 emoji = "🤔" if reflection.get("parent_id") else "💭"
-                if st.button(f"{emoji} {truncate_text(reflection['question'], 30)}",
+                if st.button(f"{emoji} {truncate_text(reflection['question'], 25)}",
                            key=f"nav_{reflection['id']}",
                            use_container_width=True):
                     st.session_state.current_reflection_id = reflection["id"]

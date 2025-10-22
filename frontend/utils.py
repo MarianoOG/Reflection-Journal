@@ -158,7 +158,7 @@ def analyze_reflection(reflection_id: str) -> Optional[dict]:
     return api_request("POST", f"/reflections/{reflection_id}/analyze")
 
 def truncate_text(text: str, n: int):
-    truncated_text = text[:n]
+    truncated_text = text[:n].strip()
     if len(text) > n:
         truncated_text += '...'
     return truncated_text

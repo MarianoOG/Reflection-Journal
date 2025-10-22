@@ -1,8 +1,8 @@
 import logging
 import requests
-from typing import Optional, List
+from typing import Optional
 from openai import OpenAI
-from models import QnAPair, LLMEntryAnalysis, LLMSummary
+from models import QnAPair, LLMSentiment, LLMThemes, LLMBeliefs
 from config import settings
 
 # Initialize OpenAI client with vLLM compatible endpoint
@@ -38,16 +38,16 @@ def ping_llm() -> bool:
         return False
 
 
-def analyze_reflection(reflection: QnAPair) -> Optional[LLMEntryAnalysis]:
-    # Instructions for the LLM
+def sentiment_analysis(reflection: QnAPair) -> Optional[LLMSentiment]:
+    """
+    Analyze the sentiment of a reflection answer.
+    Returns the emotional tone from positive to negative.
+    """
     instructions = """
-        Extract information from the reflection and provide a detailed analysis.
-        The analysis will include a list of general topics that the answer talks about.
-        It will include the sentiment of the answer from positive to negative.
-        It will include a list of beliefs or blind spots that the answer assumes or contradicts.
-        The list of beliefs should be between 1 and 5 beliefs.
-        Each belief will have a challenge question that will help the user to understand the belief better and explore it deeper.
-        Create open questions and avoid yes or no questions, use questions that are practical and useful.
+        Analyze the sentiment of the provided answer.
+        Determine whether the overall tone is positive, negative, or neutral.
+        Consider the emotional language, word choices, and overall mood expressed.
+        Return the sentiment as one of: POSITIVE, NEGATIVE, NEUTRAL.
     """
 
     content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
@@ -59,46 +59,77 @@ def analyze_reflection(reflection: QnAPair) -> Optional[LLMEntryAnalysis]:
                 {"role": "system", "content": instructions},
                 {"role": "user", "content": content}
             ],
-            text_format=LLMEntryAnalysis,
+            text_format=LLMSentiment,
             temperature=0.0,
-            max_output_tokens=2000,
-            reasoning={ "effort": "high" }
+            max_output_tokens=100,
+            reasoning={"effort": "low"}
         )
     except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
+        logging.error(f"Error in sentiment_analysis: {str(e)}")
         return None
     return response.output_parsed
 
 
-def summarize_reflections(reflections: List[QnAPair]) -> Optional[LLMSummary]:
+def themes_analysis(reflection: QnAPair) -> Optional[LLMThemes]:
+    """
+    Extract themes and general topics from a reflection answer.
+    Returns a list of key topics the answer discusses.
+    """
     instructions = """
-        You will analyze a report of questions and answers from a reflection journal.
-        The main question will be the question that the report is related to.
-        The answer summary will be an overall answer of the main question of the report with the main points.
-        The insights will be a list of insights on the core beliefs and assumptions that the report provides.
-        The goal will be a short description of the goal that the report is related to based on the insights.
-        The tasks will be a long a detail list of tasks from start to finish that I can do to archive the goal in the shortest time possible.
-        The importance of the tasks will be a rating of the tasks from high to low based on the insights.
+        Extract the main themes and general topics from the provided answer.
+        Identify key subjects, ideas, and domains that the answer talks about.
+        Be concise with each theme - use 1-3 words per theme.
+        Return a list of between 1 and 8 relevant themes.
     """
 
-    if reflections is None or len(reflections) == 0:
-        return None
-
-    report = "\n".join([f"Question: {reflection.question}\nAnswer: {reflection.answer}\n" for reflection in reflections])
+    content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
 
     try:
         response = client.responses.parse(
             model=settings.LLM_INFERENCE_MODEL_NAME,
             input=[
                 {"role": "system", "content": instructions},
-                {"role": "user", "content": report}
+                {"role": "user", "content": content}
             ],
-            text_format=LLMSummary,
+            text_format=LLMThemes,
             temperature=0.0,
-            max_output_tokens=2000,
-            reasoning={ "effort": "high" }
+            max_output_tokens=500,
+            reasoning={"effort": "low"}
         )
     except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
+        logging.error(f"Error in themes_analysis: {str(e)}")
+        return None
+    return response.output_parsed
+
+
+def beliefs_analysis(reflection: QnAPair) -> Optional[LLMBeliefs]:
+    """
+    Extract beliefs, assumptions, and blind spots from a reflection answer.
+    Returns a list of beliefs with challenge questions to explore them deeper.
+    """
+    instructions = """
+        Extract beliefs: assumptions, contradictions and blind spots from the provided answer.
+        Identify underlying beliefs that the answer assumes or contradicts.
+        For each belief, generate a challenge question that helps the user explore it deeper.
+        Create open-ended, practical questions - avoid yes/no questions.
+        Return a list of between 1 and 5 beliefs with their challenge questions.
+    """
+
+    content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
+
+    try:
+        response = client.responses.parse(
+            model=settings.LLM_INFERENCE_MODEL_NAME,
+            input=[
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": content}
+            ],
+            text_format=LLMBeliefs,
+            temperature=0.0,
+            max_output_tokens=1500,
+            reasoning={"effort": "medium"}
+        )
+    except Exception as e:
+        logging.error(f"Error in beliefs_analysis: {str(e)}")
         return None
     return response.output_parsed

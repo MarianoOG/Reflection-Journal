@@ -4,8 +4,9 @@ from fastapi.security import APIKeyHeader
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor
 from models import QnAPair, AnalysisResponse, FollowUpResponse
-from llm_inference import analyze_reflection, ping_llm
+from llm_inference import ping_llm, sentiment_analysis, themes_analysis, beliefs_analysis
 from config import logger, settings
 
 # API Key security
@@ -80,6 +81,7 @@ app = FastAPI(lifespan=lifespan)
 app.title = "Reflexion Journal - AI Worker"
 app.version = "0.0.1"
 
+
 @app.get("/",
          tags=["Root"],
          summary="Welcome Endpoint",
@@ -152,24 +154,33 @@ def analyze_reflection_endpoint(
     ),
     api_key: str = Security(verify_api_key)
 ):
-    result = analyze_reflection(reflection)
+    # Run all three analysis functions concurrently
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        sentiment_future = executor.submit(sentiment_analysis, reflection)
+        themes_future = executor.submit(themes_analysis, reflection)
+        beliefs_future = executor.submit(beliefs_analysis, reflection)
 
-    if result is None:
+        sentiment = sentiment_future.result()
+        themes = themes_future.result()
+        beliefs = beliefs_future.result()
+
+    # Return an error message if any of them fails
+    if sentiment is None or themes is None or beliefs is None:
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze reflection. Please check logs for details."
         )
-    
+
+    # Create response
     response = list()
     response.append(
         AnalysisResponse(
             id = reflection.id,
-            sentiment = result.sentiment,
-            themes = result.themes
+            sentiment = sentiment.sentiment,
+            themes = themes.themes
         )
     )
-
-    for belief in result.beliefs:
+    for belief in beliefs.beliefs:
         response.append(
             FollowUpResponse(
                 parent_id = reflection.id,
@@ -177,7 +188,6 @@ def analyze_reflection_endpoint(
                 context = belief.statement
             )
         )
-
     return response
 
 

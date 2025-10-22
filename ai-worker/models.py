@@ -2,31 +2,31 @@ from enum import Enum
 from typing import List
 from pydantic import BaseModel
 
-class SentimentType(str, Enum):
-    POSITIVE = "Positive"
-    NEUTRAL = "Neutral"
-    NEGATIVE = "Negative"
 
 class QnAPair(BaseModel):
     id: str
     question: str
     answer: str
 
-class LLMBelief(BaseModel):
+class SentimentType(str, Enum):
+    POSITIVE = "Positive"
+    NEUTRAL = "Neutral"
+    NEGATIVE = "Negative"
+
+class LLMSentiment(BaseModel):
+    sentiment: SentimentType
+
+class LLMThemes(BaseModel):
+    themes: List[str]
+
+class Belief(BaseModel):
     statement: str
     challenge_question: str
 
-class LLMEntryAnalysis(BaseModel):
-    themes: List[str]
-    sentiment: SentimentType
-    beliefs: List[LLMBelief]
-
-class LLMSummary(BaseModel):
-    main_question: str
-    answer_summary: str
+class LLMBeliefs(BaseModel):
+    beliefs: List[Belief]
 
 class AnalysisResponse(BaseModel):
-    # Tree structure
     id: str
     sentiment: SentimentType
     themes: List[str]

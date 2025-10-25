@@ -8,6 +8,9 @@ class QnAPair(BaseModel):
     question: str
     answer: str
 
+class LLMQuestion(BaseModel):
+    question: str
+
 class SentimentType(str, Enum):
     POSITIVE = "Positive"
     NEUTRAL = "Neutral"

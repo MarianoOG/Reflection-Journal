@@ -6,7 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 from models import QnAPair, AnalysisResponse, FollowUpResponse
-from llm_inference import ping_llm, sentiment_analysis, themes_analysis, beliefs_analysis
+from llm_inference import ping_llm, generate_question, sentiment_analysis, themes_analysis, beliefs_analysis
 from config import logger, settings
 
 # API Key security
@@ -154,6 +154,9 @@ def analyze_reflection_endpoint(
     ),
     api_key: str = Security(verify_api_key)
 ):
+    if not reflection.question:
+        reflection = generate_question(reflection)
+
     # Run all three analysis functions concurrently
     with ThreadPoolExecutor(max_workers=3) as executor:
         sentiment_future = executor.submit(sentiment_analysis, reflection)

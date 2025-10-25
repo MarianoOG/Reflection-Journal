@@ -292,16 +292,19 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
         reflection = session.get(Reflection, reflection_id)
         if not reflection:
             raise HTTPException(status_code=404, detail="Reflection not found")
-
+                
         # Verify ownership
         if reflection.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized to analyze this reflection")
 
+        if not reflection.answer or not reflection.answer.strip():
+            raise HTTPException(status_code=404, detail="No content to be analyzed")
+        
         # Prepare the QnA pair for the AI Worker
         qna_data = {
             "id": reflection.id,
-            "question": reflection.question,
-            "answer": reflection.answer or ""
+            "question": reflection.question or "",
+            "answer": reflection.answer.strip()
         }
 
         # Call the AI Worker analyze endpoint

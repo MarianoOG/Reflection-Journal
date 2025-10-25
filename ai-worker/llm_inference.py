@@ -2,7 +2,7 @@ import logging
 import requests
 from typing import Optional
 from openai import OpenAI
-from models import QnAPair, LLMSentiment, LLMThemes, LLMBeliefs
+from models import QnAPair, LLMQuestion, LLMSentiment, LLMThemes, LLMBeliefs
 from config import settings
 
 # Initialize OpenAI client with vLLM compatible endpoint
@@ -36,6 +36,39 @@ def ping_llm() -> bool:
     except Exception as e:
         logging.error(f"Error pinging LLM service: {e}")
         return False
+
+
+def generate_question(reflection: QnAPair) -> QnAPair:
+    """
+    Generate a compelling question based on a reflection answer.
+    Returns the original QnAPair with the generated question added
+    """
+    instructions = """
+        Generate a clear, thought-provoking question or title based on the provided answer.
+        The question should capture the essence and main theme of the answer.
+        Keep it to one sentence maximum (under 15 words).
+        Make it engaging and specific to the content provided.
+    """
+
+    content = f"Answer: {reflection.answer}\n"
+
+    try:
+        response = client.responses.parse(
+            model=settings.LLM_INFERENCE_MODEL_NAME,
+            input=[
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": content}
+            ],
+            text_format=LLMQuestion,
+            temperature=0.0,
+            max_output_tokens=150,
+            reasoning={"effort": "low"}
+        )
+        if response.output_parsed:
+            reflection.question = response.output_parsed.question
+    except Exception as e:
+        logging.error(f"Error in generate_question: {str(e)}")
+    return reflection
 
 
 def sentiment_analysis(reflection: QnAPair) -> Optional[LLMSentiment]:

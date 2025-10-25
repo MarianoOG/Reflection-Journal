@@ -50,4 +50,4 @@ jobs:
           --min-instances=0 \
           --max-instances=1 \
           --project ${{ secrets.PROJECT_ID }} \
-          --set-env-vars="LLM_INFERENCE_URL=${{ secrets.LLM_INFERENCE_URL }},LLM_INFERENCE_API_KEY=${{ secrets.LLM_INFERENCE_API_KEY }},LLM_INFERENCE_MODEL_NAME=${{ secrets.LLM_INFERENCE_MODEL_NAME }}"
+          --set-env-vars="AI_WORKER_API_KEY=${{ secrets.AI_WORKER_API_KEY }},LLM_INFERENCE_URL=${{ secrets.LLM_INFERENCE_URL }},LLM_INFERENCE_API_KEY=${{ secrets.LLM_INFERENCE_API_KEY }},LLM_INFERENCE_MODEL_NAME=${{ secrets.LLM_INFERENCE_MODEL_NAME }}"

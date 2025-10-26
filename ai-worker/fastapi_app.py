@@ -179,6 +179,7 @@ def analyze_reflection_endpoint(
     response.append(
         AnalysisResponse(
             id = reflection.id,
+            question = reflection.question,
             sentiment = sentiment.sentiment,
             themes = themes.themes
         )

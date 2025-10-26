@@ -31,6 +31,7 @@ class LLMBeliefs(BaseModel):
 
 class AnalysisResponse(BaseModel):
     id: str
+    question: str
     sentiment: SentimentType
     themes: List[str]
 

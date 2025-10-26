@@ -330,6 +330,7 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
 
         # Update the reflection with sentiment
         if "sentiment" in analysis:
+            reflection.question = analysis["question"]
             reflection.sentiment = analysis["sentiment"]
 
         # Process themes
@@ -378,6 +379,7 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
         session.refresh(reflection)
 
         return {
+            "question": reflection.question,
             "sentiment": reflection.sentiment,
             "themes": theme_names,
             "follow_ups_created": len(follow_ups)

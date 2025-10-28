@@ -71,15 +71,8 @@ async def lifespan(_: FastAPI):
     Also initializes the GCP storage client for accessing audio files from Cloud Storage.
     """
     global model, storage_client, bucket
-
-    # Initialize Whisper model
-    if DEVICE == "cuda":
-        # Large model: use GPU acceleration with float16 precision
-        model = WhisperModel("large-v3", device="cuda", compute_type="float16")
-    else:
-        # Smaller model: use CPU with int8 quantization for memory efficiency
-        model = WhisperModel("small", device="cpu", compute_type="int8")
-
+    model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    
     # Initialize GCP storage client
     try:
         storage_client = storage.Client(project=PROJECT_NAME)

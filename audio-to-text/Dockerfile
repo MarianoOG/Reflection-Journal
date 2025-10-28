@@ -1,6 +1,6 @@
 FROM nvidia/cuda:13.0.1-cudnn-runtime-ubuntu24.04
 
-RUN apt-get update && apt-get install -y python3 python3-venv && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 python3-venv ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv

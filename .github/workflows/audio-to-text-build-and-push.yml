@@ -50,4 +50,7 @@ jobs:
           --min-instances=0 \
           --max-instances=1 \
           --project ${{ secrets.PROJECT_ID }} \
+          --gpu=1 \
+          --memory=16Gi \
+          --cpu=4 \
           --set-env-vars="AUDIO_TO_TEXT_API_KEY=${{ secrets.AUDIO_TO_TEXT_API_KEY }},DEVICE=cuda,PROJECT_NAME=${{ secrets.PROJECT_ID }},BUCKET_NAME=${{ secrets.BUCKET_NAME }}"

@@ -107,6 +107,31 @@ def root():
     return {"message": f"Welcome to {app.title} v{app.version}"}
 
 
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="Health Check",
+    description="Checks if the model and GCP bucket are properly initialized."
+)
+def health():
+    """
+    Health check endpoint that verifies critical resources are available.
+
+    Returns:
+        dict: Contains a 'healthy' boolean and status of each service (model, bucket).
+    """
+    model_ready = model is not None
+    bucket_ready = bucket is not None
+
+    return {
+        "healthy": model_ready and bucket_ready,
+        "services": {
+            "model": "available" if model_ready else "unavailable",
+            "bucket": "available" if bucket_ready else "unavailable"
+        }
+    }
+
+
 @app.post(
     "/transcribe",
     tags=["Transcription"],

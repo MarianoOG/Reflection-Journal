@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.title = "Reflexion Journal - AI Worker"
+app.title = "Reflection Journal - AI Worker"
 app.version = "0.0.1"
 
 

@@ -7,6 +7,16 @@ services:
       - "8001:8080"
     volumes:
       - ./ai-worker/.env:/app/.env
+  audio-to-text:
+    build:
+      context: ./audio-to-text
+      dockerfile: Dockerfile
+      args:
+        WHISPER_MODELS: "small"
+    ports:
+      - "8002:8080"
+    volumes:
+      - ./audio-to-text/.env:/app/.env
   backend:
     build:
       context: ./backend
@@ -20,6 +30,7 @@ services:
       AI_WORKER_URL: http://ai-worker:8080
     depends_on:
       - ai-worker
+      - audio-to-text
   frontend:
     build:
       context: ./frontend

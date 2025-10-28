@@ -1,0 +1,53 @@
+name: Audio to Text Build and Push
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'audio-to-text/**'
+      - '.github/workflows/audio-to-text-build-and-push.yml'
+
+jobs:
+  deploy-audio-to-text:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        id: 'checkout'
+        uses: actions/checkout@v2
+
+      - name: Google Auth
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.CREDENTIALS }}'
+
+      - name: 'Set up Cloud SDK'
+        id: 'setup'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Configure Docker
+        id: 'docker'
+        run: |
+          gcloud auth configure-docker ${{ secrets.LOCATION }}-docker.pkg.dev
+
+      - name: Build and Push Audio to Text
+        id: 'build-audio-to-text'
+        run: |
+          docker build --build-arg WHISPER_MODELS="large-v3" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/audio-to-text:${{ github.sha }}" -t "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/audio-to-text:latest" ./audio-to-text
+          docker push "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/audio-to-text" --all-tags
+
+      - name: Deploy Audio to Text
+        id: 'deploy-audio-to-text'
+        run: |
+          gcloud run deploy reflection-journal-audio-to-text \
+          --region ${{ secrets.LOCATION }} \
+          --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/audio-to-text:latest" \
+          --allow-unauthenticated \
+          --min-instances=0 \
+          --max-instances=1 \
+          --project ${{ secrets.PROJECT_ID }} \
+          --set-env-vars="AUDIO_TO_TEXT_API_KEY=${{ secrets.AUDIO_TO_TEXT_API_KEY }},DEVICE=cuda,PROJECT_NAME=${{ secrets.PROJECT_ID }},BUCKET_NAME=${{ secrets.BUCKET_NAME }}"

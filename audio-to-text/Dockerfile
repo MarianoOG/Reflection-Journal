@@ -1,12 +1,16 @@
 FROM nvidia/cuda:13.0.1-cudnn-runtime-ubuntu24.04
 
-RUN apt-get update && apt-get install -y python3 python3-pip
+RUN apt-get update && apt-get install -y python3 python3-venv && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download Whisper models to avoid cold-start delays
-RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('large-v3')"
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3')"
 
 COPY fastapi_app.py /app/fastapi_app.py
 

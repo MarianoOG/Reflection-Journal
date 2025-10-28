@@ -10,7 +10,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download Whisper models to avoid cold-start delays
-RUN python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3')"
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3', device='cuda', compute_type='float16')"
 
 COPY fastapi_app.py /app/fastapi_app.py
 

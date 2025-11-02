@@ -16,7 +16,7 @@ from utils import (
 def render_edit_mode(reflection: Optional[dict] = None):
     """Render the edit interface"""
     
-    with st.form("reflection_form"):
+    with st.form("reflection_form", border=False):
         if reflection and reflection.get("question"):
             st.write(reflection.get('question'))
             if reflection.get("context"):

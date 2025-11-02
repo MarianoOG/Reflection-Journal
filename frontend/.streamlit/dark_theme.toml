@@ -1,0 +1,55 @@
+# Reflection Journal - Dark Theme
+
+[theme]
+base = "dark"
+
+# Primary color - Brighter Electric Blue for primary actions and focus
+primaryColor = "#3B82F6"
+
+# Background colors
+backgroundColor = "#1A1A1A"  # Coco's Black - main canvas
+secondaryBackgroundColor = "#4A4A4A"  # Charcoal
+
+# Text colors
+textColor = "#F5F5F5"  # Soft White - main text
+linkColor = "#3B82F6"  # Brighter Electric Blue
+linkUnderline = true
+
+# Code styling
+codeTextColor = "#F5F5F5"  # Soft White
+codeBackgroundColor = "#4A4A4A"  # Charcoal
+
+# Typography - IBM Plex Sans
+font = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap"
+headingFont = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@700&display=swap"
+codeFont = "'IBM Plex Mono':https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap"
+
+# Border settings
+borderColor = "#9CA3AF"  # Light Gray
+showWidgetBorder = true
+showSidebarBorder = false
+dataframeBorderColor = "#9CA3AF"  # Light Gray
+dataframeHeaderBackgroundColor = "#4A4A4A"  # Charcoal
+
+# Color palette from brand manifesto
+redColor = "#FF7A5C"  # Lighter Coral
+orangeColor = "#FB923C"  # Bright Orange
+yellowColor = "#FBBF24"  # Bright Gold
+greenColor = "#34D399"  # Bright Emerald
+blueColor = "#0EA5E9"  # Bright Sky Blue
+grayColor = "#9CA3AF"  # Light Gray
+
+# Sidebar configuration
+[theme.sidebar]
+backgroundColor = "#1A1A1A"  # Coco's Black - main canvas
+secondaryBackgroundColor = "#4A4A4A"  # Charcoal
+primaryColor = "#3B82F6"  # Brighter Electric Blue - consistent
+textColor = "#F5F5F5"  # Soft White
+linkColor = "#3B82F6"  # Brighter Electric Blue
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "none"

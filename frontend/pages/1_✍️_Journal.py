@@ -114,7 +114,7 @@ def render_metadata(reflection: dict):
     # Render parent
     parent = get_reflection_parent(reflection["id"])
     if parent:
-        if st.button(f"⬆️ PARENT: {truncate_text(parent['question'], 65)}", key="parent_btn"):
+        if st.button(f"⬆️ PARENT: {truncate_text(parent['question'], 65)}", key="parent_btn", use_container_width=True):
             st.session_state.current_reflection_id = parent["id"]
             st.rerun()
     else:
@@ -123,9 +123,9 @@ def render_metadata(reflection: dict):
     # Render Children
     children = get_reflection_children(reflection["id"])
     if children:
-        with st.expander(f"⬇️ Children ({len(children)})"):
+        with st.expander(f"⬇️ Children ({len(children)})", expanded=True):
             for i, child in enumerate(children):
-                if st.button(f"{truncate_text(child['question'], 35)}", key=f"child_{i}"):
+                if st.button(f"{truncate_text(child['question'], 35)}", key=f"child_{i}", use_container_width=True):
                     st.session_state.current_reflection_id = child["id"]
                     st.rerun()
     else:

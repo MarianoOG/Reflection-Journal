@@ -38,14 +38,14 @@ def ping_llm() -> bool:
         return False
 
 
-def generate_question(reflection: QnAPair) -> QnAPair:
+def generate_question(reflection: QnAPair) -> Optional[str]:
     """
     Generate a compelling question based on a reflection answer.
-    Returns the original QnAPair with the generated question added
+    Returns a string with the generated question
     """
     instructions = """
         Generate a clear, thought-provoking question or title based on the provided answer.
-        The question should capture the essence and main theme of the answer.
+        The question should be a natural initator for the main theme and essence of the answer.
         Keep it to one sentence maximum (under 15 words).
         Make it engaging and specific to the content provided.
         Respond in the same language as the answer provided.
@@ -66,10 +66,10 @@ def generate_question(reflection: QnAPair) -> QnAPair:
             reasoning={"effort": "low"}
         )
         if response.output_parsed:
-            reflection.question = response.output_parsed.question
+            return response.output_parsed.question
     except Exception as e:
         logging.error(f"Error in generate_question: {str(e)}")
-    return reflection
+    return None
 
 
 def sentiment_analysis(reflection: QnAPair) -> Optional[LLMSentiment]:
@@ -84,7 +84,10 @@ def sentiment_analysis(reflection: QnAPair) -> Optional[LLMSentiment]:
         Return the sentiment as one of: POSITIVE, NEGATIVE, NEUTRAL.
     """
 
-    content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
+    if reflection.question:
+        content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
+    else:
+        content = reflection.answer
 
     try:
         response = client.responses.parse(
@@ -117,7 +120,10 @@ def themes_analysis(reflection: QnAPair) -> Optional[LLMThemes]:
         Respond in the same language as the answer provided.
     """
 
-    content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
+    if reflection.question:
+        content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
+    else:
+        content = reflection.answer
 
     try:
         response = client.responses.parse(

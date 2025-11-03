@@ -30,7 +30,6 @@ class LLMBeliefs(BaseModel):
     beliefs: List[Belief]
 
 class AnalysisResponse(BaseModel):
-    id: str
     question: str
     sentiment: SentimentType
     themes: List[str]

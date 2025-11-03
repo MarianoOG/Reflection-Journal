@@ -5,7 +5,7 @@ import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
-from models import QnAPair, AnalysisResponse, FollowUpResponse
+from models import QnAPair, AnalysisResponse
 from llm_inference import ping_llm, generate_question, sentiment_analysis, themes_analysis, beliefs_analysis
 from config import logger, settings
 
@@ -140,7 +140,7 @@ def health_check():
           tags=["Analysis"],
           summary="Analyze Reflection",
           description="Analyzes a reflection question and answer pair, extracting themes, sentiment, and beliefs with challenge questions. Requires API key authentication.",
-          response_model=List[Union[AnalysisResponse, FollowUpResponse]])
+          response_model=AnalysisResponse)
 def analyze_reflection_endpoint(
     reflection: QnAPair = Body(
         description="A reflection entry containing a question and its corresponding answer to be analyzed",
@@ -154,45 +154,31 @@ def analyze_reflection_endpoint(
     ),
     api_key: str = Security(verify_api_key)
 ):
-    if not reflection.question:
-        reflection = generate_question(reflection)
-
     # Run all three analysis functions concurrently
     with ThreadPoolExecutor(max_workers=3) as executor:
+        question_future = None if reflection.question else executor.submit(generate_question, reflection)
         sentiment_future = executor.submit(sentiment_analysis, reflection)
         themes_future = executor.submit(themes_analysis, reflection)
-        beliefs_future = executor.submit(beliefs_analysis, reflection)
 
+        temp_question = question_future.result() if question_future else None
         sentiment = sentiment_future.result()
         themes = themes_future.result()
-        beliefs = beliefs_future.result()
 
-    # Return an error message if any of them fails
-    if sentiment is None or themes is None or beliefs is None:
+    if sentiment is None or themes is None or (temp_question is None and not reflection.question):
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze reflection. Please check logs for details."
         )
 
-    # Create response
-    response = list()
-    response.append(
-        AnalysisResponse(
-            id = reflection.id,
-            question = reflection.question,
-            sentiment = sentiment.sentiment,
-            themes = themes.themes
-        )
+    # Update Reflection if needed
+    if temp_question:
+        reflection.question = temp_question
+
+    return AnalysisResponse(
+        question = reflection.question,
+        sentiment = sentiment.sentiment,
+        themes = themes.themes
     )
-    for belief in beliefs.beliefs:
-        response.append(
-            FollowUpResponse(
-                parent_id = reflection.id,
-                question = belief.challenge_question,
-                context = belief.statement
-            )
-        )
-    return response
 
 
 if __name__ == "__main__":

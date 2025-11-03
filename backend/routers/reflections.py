@@ -319,17 +319,10 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
         except requests.exceptions.RequestException as e:
             raise HTTPException(status_code=503, detail=f"AI Worker service error: {str(e)}")
 
-        analysis_results = response.json()
-
-        # The response should be an array with AnalysisResponse at index 0 and FollowUpResponse objects at indices 1+
-        if not isinstance(analysis_results, list) or len(analysis_results) == 0:
-            raise HTTPException(status_code=502, detail="Invalid response from AI Worker service")
-
-        analysis = analysis_results[0]
-        follow_ups = analysis_results[1:] if len(analysis_results) > 1 else []
+        analysis = response.json()
 
         # Update the reflection with sentiment
-        if "sentiment" in analysis:
+        if "sentiment" in analysis and "question" in analysis:
             reflection.question = analysis["question"]
             reflection.sentiment = analysis["sentiment"]
 
@@ -363,17 +356,6 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
                 )
                 session.add(reflection_theme)
 
-        # Create child reflections from follow-ups
-        for follow_up in follow_ups:
-            child_reflection = Reflection(
-                user_id=current_user.id,
-                parent_id=reflection_id,
-                question=follow_up.get("question", ""),
-                context=follow_up.get("context", ""),
-                language=reflection.language
-            )
-            session.add(child_reflection)
-
         # Commit all changes
         session.commit()
         session.refresh(reflection)
@@ -382,7 +364,6 @@ def analyze_reflection(reflection_id: str = Path(..., description="Unique identi
             "question": reflection.question,
             "sentiment": reflection.sentiment,
             "themes": theme_names,
-            "follow_ups_created": len(follow_ups)
         }
 
 

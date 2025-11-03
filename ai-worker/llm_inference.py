@@ -48,6 +48,7 @@ def generate_question(reflection: QnAPair) -> QnAPair:
         The question should capture the essence and main theme of the answer.
         Keep it to one sentence maximum (under 15 words).
         Make it engaging and specific to the content provided.
+        Respond in the same language as the answer provided.
     """
 
     content = f"Answer: {reflection.answer}\n"
@@ -112,7 +113,8 @@ def themes_analysis(reflection: QnAPair) -> Optional[LLMThemes]:
         Extract the main themes and general topics from the provided answer.
         Identify key subjects, ideas, and domains that the answer talks about.
         Be concise with each theme - use 1-3 words per theme.
-        Return a list of between 1 and 8 relevant themes.
+        Return a list of between 1 and 5 relevant themes.
+        Respond in the same language as the answer provided.
     """
 
     content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
@@ -145,7 +147,8 @@ def beliefs_analysis(reflection: QnAPair) -> Optional[LLMBeliefs]:
         Identify underlying beliefs that the answer assumes or contradicts.
         For each belief, generate a challenge question that helps the user explore it deeper.
         Create open-ended, practical questions - avoid yes/no questions.
-        Return a list of between 1 and 5 beliefs with their challenge questions.
+        Return a list of between 1 and 3 beliefs with their challenge questions.
+        Respond in the same language as the answer provided.
     """
 
     content = f"Question: {reflection.question}\nAnswer: {reflection.answer}\n"
@@ -159,7 +162,7 @@ def beliefs_analysis(reflection: QnAPair) -> Optional[LLMBeliefs]:
             ],
             text_format=LLMBeliefs,
             temperature=0.0,
-            max_output_tokens=1500,
+            max_output_tokens=2000,
             reasoning={"effort": "medium"}
         )
     except Exception as e:

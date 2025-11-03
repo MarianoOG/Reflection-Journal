@@ -134,9 +134,6 @@ def render_reflections():
     if "current_page" not in st.session_state:
         st.session_state.current_page = 1
     
-    # Search
-    st.text_input("🔍 Search entries...", placeholder="Comming soon...", disabled=True)
-    
     # Create columns for layout
     col1, col2 = st.columns([3, 1])
     
@@ -146,17 +143,17 @@ def render_reflections():
     with col2:
         if st.button("New entry", key="create_new_entry", type="primary", use_container_width=True):
             st.switch_page("pages/1_✍️_Journal.py")
-
+    
     # Get reflections with pagination (request 11 to check if there's a next page)
     items_per_page = 10
     offset = (st.session_state.current_page - 1) * items_per_page
     reflections = get_reflections(limit=items_per_page + 1, offset=offset)
-    
+
     if reflections:
         # Check if there are more pages
         has_next = len(reflections) > items_per_page
         current_reflections = reflections[:items_per_page]  # Show only 10
-        
+
         # Group entries by date
         grouped_reflections = group_reflections_by_date(current_reflections)
         
@@ -208,8 +205,13 @@ def render_entry(reflection: dict):
         st.caption(f"🕐 {time_formatted}")
 
     with col2:
-        # Show emoji based on whether it's a parent (user entry) or child (AI question)
-        emoji = "🤔" if reflection.get("parent_id") else "💭"
+        # Show emoji based on whether it's pending (no answer), AI question, or user entry
+        if not reflection.get("answer"):
+            emoji = "⏳"  # Pending question (no answer yet, user or AI generated)
+        elif reflection.get("parent_id"):
+            emoji = "🤔"  # AI-generated question with answer
+        else:
+            emoji = "💭"  # User entry with answer
         st.write(f"{emoji} {reflection["question"]}")
 
     with col3:

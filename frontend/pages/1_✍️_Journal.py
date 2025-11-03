@@ -164,12 +164,38 @@ def render_reflection_list():
             st.rerun()
 
         st.header("📚 Recent Reflections")
-        
+
+        # Initialize filter mode
+        if "sidebar_filter_mode" not in st.session_state:
+            st.session_state.sidebar_filter_mode = "All"
+
+        # Add filters
+        st.session_state.sidebar_filter_mode = st.segmented_control(
+            "Filter",
+            options=["All", "With answers", "Pending"],
+            selection_mode="single",
+            default="All",
+            key="sidebar_filter_control",
+            width='stretch'
+        )
+
         reflections = get_reflections(10)
+
+        # Apply filter based on selection
+        if st.session_state.sidebar_filter_mode == "With answers":
+            reflections = [r for r in reflections if r.get("answer")]
+        elif st.session_state.sidebar_filter_mode == "Pending":
+            reflections = [r for r in reflections if not r.get("answer")]
+
         if reflections:
             for reflection in reflections:
-                # Show emoji based on whether it's a parent (user entry) or child (AI question)
-                emoji = "🤔" if reflection.get("parent_id") else "💭"
+                # Show emoji based on whether it's pending, AI question, or user entry
+                if not reflection.get("answer"):
+                    emoji = "⏳"  # Pending question (no answer yet)
+                elif reflection.get("parent_id"):
+                    emoji = "🤔"  # AI-generated question with answer
+                else:
+                    emoji = "💭"  # User entry with answer
                 if st.button(f"{emoji} {truncate_text(reflection['question'], 25)}",
                            key=f"nav_{reflection['id']}",
                            use_container_width=True):

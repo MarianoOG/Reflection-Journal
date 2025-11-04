@@ -33,8 +33,3 @@ class AnalysisResponse(BaseModel):
     question: str
     sentiment: SentimentType
     themes: List[str]
-
-class FollowUpResponse(BaseModel):
-    parent_id: str
-    question: str
-    context: str

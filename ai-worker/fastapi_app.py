@@ -1,5 +1,5 @@
 from typing import List, Union
-from fastapi import FastAPI, HTTPException, Body, Security
+from fastapi import FastAPI, HTTPException, Body, Security, BackgroundTasks
 from fastapi.security import APIKeyHeader
 import uvicorn
 import asyncio
@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 from models import QnAPair, AnalysisResponse
 from llm_inference import ping_llm, generate_question, sentiment_analysis, themes_analysis, beliefs_analysis
+from publisher import publish_follow_up_questions
 from config import logger, settings
 
 # API Key security
@@ -32,6 +33,21 @@ def verify_api_key(api_key: str = Security(api_key_header)):
         )
 
     return api_key
+
+
+def analyze_beliefs_and_publish(reflection: QnAPair):
+    """
+    Background task that analyzes beliefs from a reflection and publishes follow-up questions.
+    This runs in a separate thread to avoid blocking the API response.
+    """
+    try:
+        belief_response = beliefs_analysis(reflection)
+        if belief_response and belief_response.beliefs:
+            publish_follow_up_questions(reflection.id, belief_response.beliefs)
+        else:
+            logger.warning(f"No beliefs extracted for reflection {reflection.id}")
+    except Exception as e:
+        logger.error(f"Error in analyze_beliefs_and_publish for {reflection.id}: {str(e)}")
 
 
 async def keep_llm_warm():
@@ -152,7 +168,8 @@ def analyze_reflection_endpoint(
             }
         ]
     ),
-    api_key: str = Security(verify_api_key)
+    api_key: str = Security(verify_api_key),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     # Run all three analysis functions concurrently
     with ThreadPoolExecutor(max_workers=3) as executor:
@@ -174,6 +191,10 @@ def analyze_reflection_endpoint(
     if temp_question:
         reflection.question = temp_question
 
+    # Background task: Analyze beliefs and publish follow-up questions
+    background_tasks.add_task(analyze_beliefs_and_publish, reflection)
+
+    # Send response
     return AnalysisResponse(
         question = reflection.question,
         sentiment = sentiment.sentiment,

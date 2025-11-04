@@ -65,11 +65,16 @@ def render_edit_mode(reflection: Optional[dict] = None):
             if result:
                 st.success("Reflection saved successfully! 🎉")
                 st.session_state.current_reflection_id = result["id"]
+
+                # Auto-analyze the reflection
+                with st.spinner("Analyzing your reflection..."):
+                    analyze_reflection(result["id"])
+
                 st.session_state.mode = "view"
                 st.rerun()
             else:
                 st.error("Failed to save reflection")
-            
+
 
 def render_view_mode(reflection: dict):
     """Render the view interface"""
@@ -133,20 +138,14 @@ def render_metadata(reflection: dict):
 
 def render_actions(reflection: dict):
     """Render action buttons"""
-    col1, col2, col3 = st.columns(3)
-    
+    col1, col2 = st.columns(2)
+
     with col1:
         if st.button("✏️ Edit", type="primary", use_container_width=True):
             st.session_state.mode = "edit"
             st.rerun()
 
     with col2:
-        if st.button("🔍 Analyze", use_container_width=True, disabled=not reflection.get("answer")):
-            with st.spinner("Analyzing your reflection..."):
-                analyze_reflection(reflection["id"])
-            st.rerun()
-
-    with col3:
         if st.button("🗑️ Delete", type="secondary", use_container_width=True):
             if delete_reflection(reflection["id"]):
                 st.success("Reflection deleted!")

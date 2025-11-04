@@ -50,7 +50,7 @@ async def listen_to_analysis_responses():
     logger.info("Starting analysis responses listener")
 
     subscriber_client = pubsub_v1.SubscriberClient()
-    subscription_path = f"projects/{settings.GOOGLE_CLOUD_PROJECT_ID}/subscriptions/{settings.PUBSUB_ANALYSIS_RESPONSE_SUBSCRIPTION}"
+    subscription_path = f"projects/{settings.GOOGLE_CLOUD_PROJECT_ID}/subscriptions/{settings.PUBSUB_SUBSCRIPTION}"
 
     def pull_messages():
         """Blocking function to pull messages from Pub/Sub."""

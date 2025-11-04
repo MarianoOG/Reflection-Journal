@@ -25,7 +25,7 @@ class Settings:
     AI_WORKER_URL: str = os.getenv("AI_WORKER_URL", "http://ai-worker:8080")
     AI_WORKER_API_KEY: str = os.getenv("AI_WORKER_API_KEY", "your-secret-key-change-this-in-production")
     GOOGLE_CLOUD_PROJECT_ID: str = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "")
-    PUBSUB_ANALYSIS_RESPONSE_SUBSCRIPTION: str = os.getenv("PUBSUB_ANALYSIS_RESPONSE_SUBSCRIPTION", "")
+    PUBSUB_SUBSCRIPTION: str = os.getenv("PUBSUB_SUBSCRIPTION", "")
 
 # Global settings
 settings = Settings()

@@ -7,7 +7,7 @@ services:
       - "8001:8080"
     volumes:
       - ./ai-worker/.env:/app/.env
-      - /home/marianoog/.config/gcloud/application_default_credentials.json:/app/credentials.json:ro
+      - ~/.config/gcloud/application_default_credentials.json:/app/credentials.json:ro
   backend:
     build:
       context: ./backend
@@ -17,6 +17,7 @@ services:
     volumes:
       - ./backend/db:/app/db
       - ./backend/.env:/app/.env
+      - ~/.config/gcloud/application_default_credentials.json:/app/credentials.json:ro
     environment:
       AI_WORKER_URL: http://ai-worker:8080
     depends_on:

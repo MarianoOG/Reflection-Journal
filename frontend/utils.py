@@ -117,8 +117,8 @@ def get_reflection(reflection_id: str) -> Optional[dict]:
     """Get a specific reflection by ID"""
     return api_request("GET", f"/reflections/{reflection_id}")
 
-def get_reflections(limit: int = 10, offset: int = 0) -> List[dict]:
-    """Get all reflections for the user"""
+def get_reflections(limit: int = 10, offset: int = 0, with_answer: bool = True) -> List[dict]:
+    """Get reflections for the user"""
     # Validate limit and offset
     if limit <= 0:
         limit = 10
@@ -126,8 +126,8 @@ def get_reflections(limit: int = 10, offset: int = 0) -> List[dict]:
         limit = 100
     if offset < 0:
         offset = 0
-    
-    result = api_request("GET", "/reflections/", {"limit": limit, "offset": offset})
+
+    result = api_request("GET", "/reflections/", {"limit": limit, "offset": offset, "with_answer": with_answer})
     return result if result else []
 
 def get_reflection_parent(reflection_id: str) -> Optional[dict]:
@@ -162,3 +162,18 @@ def truncate_text(text: str, n: int):
     if len(text) > n:
         truncated_text += '...'
     return truncated_text
+
+def get_reflection_emoji(reflection: dict) -> str:
+    """Get emoji based on reflection state
+
+    Returns:
+    - "⏳" for pending questions (no answer yet)
+    - "🤔" for AI-generated questions with answers (has parent_id)
+    - "💭" for user entries with answers
+    """
+    if not reflection.get("answer"):
+        return "⏳"  # Pending question (no answer yet)
+    elif reflection.get("parent_id"):
+        return "🤔"  # AI-generated question with answer
+    else:
+        return "💭"  # User entry with answer

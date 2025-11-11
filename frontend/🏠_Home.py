@@ -2,7 +2,7 @@ from typing import Optional
 from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 import streamlit as st
-from utils import login_user, register_user, get_reflections
+from utils import login_user, register_user, get_reflections, get_reflection_emoji
 from footer import render_sidebar_footer
     
 
@@ -95,7 +95,7 @@ def render_login():
                     st.session_state.token_type = token_response["token_type"]
                     st.session_state.user_email = validated_email
                     st.success("Login successful!")
-                    st.rerun()
+                    st.switch_page("pages/1_✍️_Journal.py")
     
     with tab2:
         st.write("Create a new account")
@@ -125,7 +125,7 @@ def render_login():
                         st.session_state.access_token = token_response["access_token"]
                         st.session_state.token_type = token_response["token_type"]
                         st.session_state.user_email = validated_email
-                        st.rerun()
+                        st.switch_page("pages/1_✍️_Journal.py")
             else:
                 st.error("Email verification failed")
 
@@ -143,6 +143,8 @@ def render_reflections():
     
     with col2:
         if st.button("New entry", key="create_new_entry", type="primary", use_container_width=True):
+            st.session_state.current_reflection_id = None
+            st.session_state.mode = "edit"
             st.switch_page("pages/1_✍️_Journal.py")
     
     # Get reflections with pagination (request 11 to check if there's a next page)
@@ -206,13 +208,7 @@ def render_entry(reflection: dict):
         st.caption(f"🕐 {time_formatted}")
 
     with col2:
-        # Show emoji based on whether it's pending (no answer), AI question, or user entry
-        if not reflection.get("answer"):
-            emoji = "⏳"  # Pending question (no answer yet, user or AI generated)
-        elif reflection.get("parent_id"):
-            emoji = "🤔"  # AI-generated question with answer
-        else:
-            emoji = "💭"  # User entry with answer
+        emoji = get_reflection_emoji(reflection)
         st.write(f"{emoji} {reflection["question"]}")
 
     with col3:

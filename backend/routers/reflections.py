@@ -13,25 +13,32 @@ def get_database_engine():
     return database_engine
 
 
-@router.get("/", 
-         summary="List reflections", 
+@router.get("/",
+         summary="List reflections",
          description="Retrieves reflections owned by the authenticated user with pagination.")
-def list_reflections(offset: int = Query(0, description="Number of records to skip."), 
+def list_reflections(offset: int = Query(0, description="Number of records to skip."),
                 limit: int = Query(100, description="Maximum number of records to return, capped at 100.", le=100, gt=0),
+                with_answer: bool = Query(True, description="Filter reflections by answer status. True returns only reflections with answers, False returns only reflections without answers."),
                 current_user: User = Depends(get_current_user_dep)):
     """
     List reflections owned by the authenticated user with pagination.
-    
+
     Args:
         offset (int): Number of records to skip (default: 0)
         limit (int): Maximum number of records to return (default: 100, max: 100)
+        with_answer (bool): Filter by answer status. True returns reflections with answers, False returns reflections without answers (default: True)
     """
-    
+
     with Session(get_database_engine()) as session:
+        query = select(Reflection).where(Reflection.user_id == current_user.id)
+
+        if with_answer:
+            query = query.where(Reflection.answer.isnot(None))  # type:ignore
+        else:
+            query = query.where(Reflection.answer.is_(None))  # type:ignore
+        
         reflections = session.exec(
-            select(Reflection)
-            .where(Reflection.user_id == current_user.id)
-            .order_by(desc(Reflection.created_at))
+            query.order_by(desc(Reflection.created_at))
             .offset(offset)
             .limit(limit)
         ).all()

@@ -10,7 +10,8 @@ from utils import (
     save_reflection,
     delete_reflection,
     analyze_reflection,
-    truncate_text
+    truncate_text,
+    get_reflection_emoji
 )
 from footer import render_sidebar_footer
 
@@ -30,20 +31,28 @@ def render_edit_mode(reflection: Optional[dict] = None):
             height=400
         )
 
-        _, col1, col2 = st.columns([1, 1, 1])
-        
+        col1, col2, col3 = st.columns(3)
         with col1:
-            save_clicked = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
-        
-        with col2:
             if reflection:
-                cancel_clicked = st.form_submit_button("❌ Cancel", use_container_width=True)
+                cancel_clicked = st.form_submit_button("❌ Cancel", use_container_width=True, disabled=not reflection.get("answer", ""))
                 if cancel_clicked:
                     if reflection:
                         st.session_state.mode = "view"
                         st.rerun()
                     else:
                         st.switch_page("🏠_Home.py")
+        with col2:
+            save_clicked = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
+        with col3:
+            if reflection:
+                delete_clicked = st.form_submit_button("🗑️ Delete", type="secondary", use_container_width=True)
+                if delete_clicked:
+                    if delete_reflection(reflection["id"]):
+                        st.success("Reflection deleted!")
+                        st.session_state.current_reflection_id = None
+                        st.rerun()
+                    else:
+                        st.error("Failed to delete reflection")
         
         if save_clicked:
             if not answer.strip():
@@ -131,79 +140,45 @@ def render_metadata(reflection: dict):
     if children:
         with st.expander(f"⬇️ Children ({len(children)})", expanded=True):
             for i, child in enumerate(children):
-                if st.button(f"{truncate_text(child['question'], 35)}", key=f"child_{i}", use_container_width=True):
+                emoji = get_reflection_emoji(child)
+                if st.button(f"{emoji} {truncate_text(child['question'], 40)}", key=f"child_{i}", use_container_width=True):
                     st.session_state.current_reflection_id = child["id"]
+                    # Open in edit mode if child has no answer, otherwise view mode
+                    st.session_state.mode = "edit" if not child.get("answer") else "view"
                     st.rerun()
     else:
         st.info("This entry has no children")
 
 def render_actions(reflection: dict):
     """Render action buttons"""
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("✏️ Edit", type="primary", use_container_width=True):
-            st.session_state.mode = "edit"
-            st.rerun()
-
-    with col2:
-        if st.button("🗑️ Delete", type="secondary", use_container_width=True):
-            if delete_reflection(reflection["id"]):
-                st.success("Reflection deleted!")
-                st.session_state.current_reflection_id = None
-                st.rerun()
-            else:
-                st.error("Failed to delete reflection")
+    if st.button("✏️ Edit", type="primary", use_container_width=True):
+        st.session_state.mode = "edit"
+        st.rerun()
 
 def render_reflection_list():
     """Render a sidebar with all reflections for navigation"""
     with st.sidebar:
-        if st.button("➕ New Entry", type="primary", use_container_width=True):
+        st.header("📝 Reflections")
+
+        if st.button("New Entry", type="primary", use_container_width=True):
             st.session_state.current_reflection_id = None
             st.session_state.mode = "edit"
             st.rerun()
 
-        st.header("📚 Recent Reflections")
-
-        # Initialize filter mode
-        if "sidebar_filter_mode" not in st.session_state:
-            st.session_state.sidebar_filter_mode = "All"
-
-        # Add filters
-        st.session_state.sidebar_filter_mode = st.segmented_control(
-            "Filter",
-            options=["All", "With answers", "Pending"],
-            selection_mode="single",
-            default="All",
-            key="sidebar_filter_control",
-            width='stretch'
-        )
-
-        reflections = get_reflections(10)
-
-        # Apply filter based on selection
-        if st.session_state.sidebar_filter_mode == "With answers":
-            reflections = [r for r in reflections if r.get("answer")]
-        elif st.session_state.sidebar_filter_mode == "Pending":
-            reflections = [r for r in reflections if not r.get("answer")]
+        st.subheader("💡 Suggested Follow-ups")
+        reflections = get_reflections(5, with_answer=False)
 
         if reflections:
             for reflection in reflections:
-                # Show emoji based on whether it's pending, AI question, or user entry
-                if not reflection.get("answer"):
-                    emoji = "⏳"  # Pending question (no answer yet)
-                elif reflection.get("parent_id"):
-                    emoji = "🤔"  # AI-generated question with answer
-                else:
-                    emoji = "💭"  # User entry with answer
+                emoji = get_reflection_emoji(reflection)
                 if st.button(f"{emoji} {truncate_text(reflection['question'], 25)}",
                            key=f"nav_{reflection['id']}",
                            use_container_width=True):
                     st.session_state.current_reflection_id = reflection["id"]
-                    st.session_state.mode = "view"
+                    st.session_state.mode = "edit" if not reflection.get("answer") else "view"
                     st.rerun()
         else:
-            st.info("No reflections yet")
+            st.info("No follow-ups yet")
 
         st.divider()
 

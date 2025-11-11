@@ -17,15 +17,20 @@ from footer import render_sidebar_footer
 
 def render_edit_mode(reflection: Optional[dict] = None):
     """Render the edit interface"""
-    
+
     with st.form("reflection_form", border=False):
+        title = "✍️ Journal - New"
         if reflection and reflection.get("question"):
-            st.write(reflection.get('question'))
-            if reflection.get("context"):
-                st.caption(f"Context: {reflection.get('context')}")
+            title = "✍️ " + reflection['question']
+        st.subheader(title)
+
+        # Determine text area label based on context
+        text_area_label = "Write your thoughts, reflections and memories"
+        if reflection and reflection.get("context"):
+            text_area_label = "Context: " + reflection.get('context', '')
 
         answer = st.text_area(
-            "Write your thoughts, memories or answers",
+            text_area_label,
             value=reflection.get("answer", "") if reflection else "",
             max_chars=2000,
             height=400
@@ -92,9 +97,10 @@ def render_view_mode(reflection: dict):
 
     with col1:
         # Subtitle
-        st.subheader(f"{reflection['question']}")
+        emoji = get_reflection_emoji(reflection)
+        st.subheader(f"{emoji} {reflection['question']}")
         if reflection.get("context"):
-            st.caption(f"Context: {reflection['context']}")
+            st.write(f"**Context:** {reflection['context']}")
         
         # Answer
         if reflection.get("answer"):
@@ -208,7 +214,6 @@ def main():
     
     if current_id and mode == "view":
         # View existing reflection
-        st.title("✍️ Journal")
         reflection = get_reflection(current_id)
         if reflection:
             render_view_mode(reflection)
@@ -219,7 +224,6 @@ def main():
     
     elif current_id and mode == "edit":
         # Edit existing reflection
-        st.title("✍️ Journal - Edit")
         reflection = get_reflection(current_id)
         if reflection:
             render_edit_mode(reflection)
@@ -230,7 +234,6 @@ def main():
             
     else:
         # Create new reflection
-        st.title("✍️ Journal - New")
         base_reflection = {}
         if st.session_state.parent_id:
             base_reflection["parent_id"] = st.session_state.parent_id

@@ -3,6 +3,7 @@ from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 import streamlit as st
 from utils import login_user, register_user, get_reflections
+from footer import render_sidebar_footer
     
 
 def format_time(date_str: str) -> str:
@@ -227,9 +228,8 @@ def render_entry(reflection: dict):
 
 
 def main():
-    # Warning
-    st.sidebar.warning("🚧 Under development, your data will be saved to the cloud and used for improving the app.")
-
+    st.session_state["Page"] = "Home"
+    
     # Login form
     if "access_token" not in st.session_state:
         render_login()
@@ -240,16 +240,7 @@ def main():
     
     # Render reflections
     render_reflections()
-
-    # Logout button in sidebar
-    with st.sidebar:
-        st.write(f"Logged in as: {st.session_state.get('user_email', 'Unknown')}")
-        if st.button("Logout"):
-            # Clear session state
-            for key in ['access_token', 'token_type', 'user_email']:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+    render_sidebar_footer()
 
 if __name__ == "__main__":
     st.set_page_config(layout="centered", page_icon="📔", page_title="Reflection Journal")

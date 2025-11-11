@@ -1,9 +1,13 @@
 import streamlit as st
 from utils import get_user_info, update_user_info, delete_user_account
+from footer import render_sidebar_footer
 
 def main():
+    # Track current page
+    st.session_state["Page"] = "Settings"
+
     st.title("⚙️ Settings")
-    
+
     # Get current user info
     user_info = get_user_info()
     if not user_info:
@@ -73,6 +77,9 @@ def main():
                     if key in st.session_state:
                         del st.session_state[key]
                 st.switch_page("🏠_Home.py")
+
+    # Render footer with logout and feedback
+    render_sidebar_footer()
 
 if __name__ == "__main__":
     st.set_page_config(layout="centered", page_icon="⚙️", page_title="Settings")

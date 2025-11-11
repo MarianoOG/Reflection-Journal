@@ -12,6 +12,7 @@ from utils import (
     analyze_reflection,
     truncate_text
 )
+from footer import render_sidebar_footer
 
 def render_edit_mode(reflection: Optional[dict] = None):
     """Render the edit interface"""
@@ -204,7 +205,12 @@ def render_reflection_list():
         else:
             st.info("No reflections yet")
 
-def main():    
+        st.divider()
+
+def main():
+    # Track current page
+    st.session_state["Page"] = "Journal"
+
     # Initialize session state
     if "mode" not in st.session_state:
         st.session_state.mode = "edit"  # Start in edit mode for new entries
@@ -217,7 +223,10 @@ def main():
     
     # Render navigation sidebar
     render_reflection_list()
-    
+
+    # Render footer with logout and feedback
+    render_sidebar_footer()
+
     # Handle URL parameters or session state
     current_id = st.session_state.current_reflection_id
     mode = st.session_state.mode

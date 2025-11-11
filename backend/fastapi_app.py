@@ -12,7 +12,7 @@ import uvicorn
 # Local application imports
 from config import Settings, logger
 from models import create_db_and_tables, Reflection
-from routers import themes, reflections, auth, users, health
+from routers import themes, reflections, auth, users, health, email
 from ai_worker import ping_ai_worker
 
 settings = Settings()
@@ -188,6 +188,7 @@ app.include_router(themes.router)
 app.include_router(reflections.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(email.router)
 app.include_router(health.router)
 
 

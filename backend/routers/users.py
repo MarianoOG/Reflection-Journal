@@ -103,7 +103,6 @@ def get_user_sentiment_by_date(current_user: User = Depends(get_current_user_dep
     """
     Get sentiment trend data for the currently authenticated user.
     Returns average sentiment per day for the last 30 days (only days with entries).
-    Requires at least 3 different days with data to include sentiment data.
 
     Sentiment values:
     - Positive: 1
@@ -151,13 +150,7 @@ def get_user_sentiment_by_date(current_user: User = Depends(get_current_user_dep
                 entries_count=len(sentiments)
             ))
 
-        # Check if we have sufficient data (at least 5 different days)
-        has_sufficient_data = len(sentiment_data) >= 5
-
-        return UserSentimentData(
-            sentiment_data=sentiment_data,
-            has_sufficient_data=has_sufficient_data
-        )
+        return UserSentimentData(sentiment_data=sentiment_data)
 
 
 @router.delete("/me", 

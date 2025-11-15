@@ -113,4 +113,3 @@ class SentimentByDate(SQLModel):
 
 class UserSentimentData(SQLModel):
     sentiment_data: List[SentimentByDate]
-    has_sufficient_data: bool

@@ -189,9 +189,6 @@ def render_reflection_list():
         st.divider()
 
 def main():
-    # Track current page
-    st.session_state["Page"] = "Journal"
-
     # Initialize session state
     if "mode" not in st.session_state:
         st.session_state.mode = "edit"  # Start in edit mode for new entries
@@ -245,4 +242,5 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide", page_icon="✍️", page_title="Journal")
     if "access_token" not in st.session_state:
         st.switch_page("🏠_Home.py")
+    st.session_state["Page"] = "Journal"
     main()

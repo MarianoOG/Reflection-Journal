@@ -177,3 +177,11 @@ def get_reflection_emoji(reflection: dict) -> str:
         return "🤔"  # AI-generated question with answer
     else:
         return "💭"  # User entry with answer
+
+def get_dashboard_stats() -> Optional[dict]:
+    """Fetch dashboard statistics from the backend"""
+    return api_request("GET", "/users/me/stats")
+
+def get_sentiment_by_date() -> Optional[dict]:
+    """Fetch sentiment data by date from the backend"""
+    return api_request("GET", "/users/me/sentiment_by_date")

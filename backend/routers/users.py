@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from datetime import datetime, timedelta
+from typing import List
 
-from models import User, Reflection, ReflectionTheme, UserResponse, Theme, UserUpdate
+from models import User, Reflection, ReflectionTheme, UserResponse, Theme, UserUpdate, UserStats, UserSentimentData, SentimentByDate, SentimentType
 from config import get_current_user_dep
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -61,6 +63,100 @@ def update_current_user_info(user_update: UserUpdate, current_user: User = Depen
             prefered_language=user_to_update.prefered_language,
             last_login=user_to_update.last_login,
             created_at=user_to_update.created_at
+        )
+
+
+@router.get("/me/stats",
+         summary="Get user reflection statistics",
+         description="Get total entries, entries with answers, and follow-up questions without answers.",
+         response_model=UserStats)
+def get_user_stats(current_user: User = Depends(get_current_user_dep)):
+    """
+    Get statistics about the currently authenticated user's reflections:
+    - Total number of entries
+    - Number of entries with answers
+    - Number of follow-up questions without answers
+    """
+    with Session(get_database_engine()) as session:
+        # Get all reflections for the user
+        all_reflections = session.exec(
+            select(Reflection)
+            .where(Reflection.user_id == current_user.id)
+        ).all()
+
+        total_entries = len(all_reflections)
+        entries_with_answers = len([r for r in all_reflections if r.answer is not None])
+        follow_up_questions_without_answers = len([r for r in all_reflections if r.answer is None])
+
+        return UserStats(
+            total_entries=total_entries,
+            entries_with_answers=entries_with_answers,
+            follow_up_questions_without_answers=follow_up_questions_without_answers
+        )
+
+
+@router.get("/me/sentiment_by_date",
+         summary="Get sentiment data by date",
+         description="Get average sentiment per day for the last 30 days with entries.",
+         response_model=UserSentimentData)
+def get_user_sentiment_by_date(current_user: User = Depends(get_current_user_dep)):
+    """
+    Get sentiment trend data for the currently authenticated user.
+    Returns average sentiment per day for the last 30 days (only days with entries).
+    Requires at least 3 different days with data to include sentiment data.
+
+    Sentiment values:
+    - Positive: 1
+    - Neutral: 0
+    - Negative: -1
+    """
+    with Session(get_database_engine()) as session:
+        # Get all reflections for the user from the last 30 days
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+        reflections = session.exec(
+            select(Reflection)
+            .where(Reflection.user_id == current_user.id)
+            .where(Reflection.created_at >= thirty_days_ago)
+            .where(Reflection.answer.isnot(None))  # type:ignore
+        ).all()
+
+        # Group by date and calculate average sentiment
+        sentiment_by_date_dict = {}
+
+        for reflection in reflections:
+            # Extract date only (YYYY-MM-DD)
+            date_key = reflection.created_at.date().isoformat()
+
+            # Convert sentiment enum to numeric value
+            if reflection.sentiment == SentimentType.POSITIVE:
+                sentiment_value = 1
+            elif reflection.sentiment == SentimentType.NEUTRAL:
+                sentiment_value = 0
+            else:  # NEGATIVE
+                sentiment_value = -1
+
+            # Add to dict for averaging
+            if date_key not in sentiment_by_date_dict:
+                sentiment_by_date_dict[date_key] = []
+            sentiment_by_date_dict[date_key].append(sentiment_value)
+
+        # Calculate averages and create result
+        sentiment_data = []
+        for date_key in sorted(sentiment_by_date_dict.keys()):
+            sentiments = sentiment_by_date_dict[date_key]
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            sentiment_data.append(SentimentByDate(
+                date=date_key,
+                sentiment_value=avg_sentiment,
+                entries_count=len(sentiments)
+            ))
+
+        # Check if we have sufficient data (at least 5 different days)
+        has_sufficient_data = len(sentiment_data) >= 5
+
+        return UserSentimentData(
+            sentiment_data=sentiment_data,
+            has_sufficient_data=has_sufficient_data
         )
 
 

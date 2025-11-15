@@ -3,9 +3,6 @@ from utils import get_user_info, update_user_info, delete_user_account
 from footer import render_sidebar_footer
 
 def main():
-    # Track current page
-    st.session_state["Page"] = "Settings"
-
     st.title("⚙️ Settings")
 
     # Get current user info
@@ -16,7 +13,7 @@ def main():
     
     # User Information Section
     st.divider()
-    st.header("👤 User Information")
+    st.subheader("👤 User Information")
     
     # Name input
     name = st.text_input(
@@ -47,14 +44,14 @@ def main():
     st.divider()
     
     # Account Information (read-only)
-    st.header("📋 Account Information")
+    st.subheader("📋 Account Information")
     st.text_input("Email", value=user_info.get("email", ""), disabled=True)
     st.text_input("Created", value=user_info.get("created_at", "")[:10], disabled=True)
     st.text_input("Last Login", value=user_info.get("last_login", "")[:10], disabled=True)
     st.divider()
     
     # Danger Zone
-    st.header("⚠️ Danger Zone")
+    st.subheader("⚠️ Danger Zone")
     st.warning("The following actions cannot be undone!")
     
     with st.expander("🗑️ Delete Account", expanded=False):
@@ -85,4 +82,5 @@ if __name__ == "__main__":
     st.set_page_config(layout="centered", page_icon="⚙️", page_title="Settings")
     if "access_token" not in st.session_state:
         st.switch_page("🏠_Home.py")
+    st.session_state["Page"] = "Settings"
     main()

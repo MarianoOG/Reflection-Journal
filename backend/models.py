@@ -96,4 +96,21 @@ class UserResponse(SQLModel):
 class UserUpdate(SQLModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     prefered_language: Optional[Languages] = None
-    
+
+####################
+# Dashboard Models #
+####################
+
+class UserStats(SQLModel):
+    total_entries: int
+    entries_with_answers: int
+    follow_up_questions_without_answers: int
+
+class SentimentByDate(SQLModel):
+    date: str  # YYYY-MM-DD format
+    sentiment_value: float  # Average sentiment (-1 to 1)
+    entries_count: int  # Number of entries on that day
+
+class UserSentimentData(SQLModel):
+    sentiment_data: List[SentimentByDate]
+    has_sufficient_data: bool

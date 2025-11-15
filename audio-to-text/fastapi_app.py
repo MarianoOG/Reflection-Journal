@@ -6,6 +6,7 @@ It includes API key authentication and multi-language support via faster-whisper
 """
 
 import os
+import torch
 from contextlib import asynccontextmanager
 from io import BytesIO
 from fastapi import FastAPI, HTTPException, Security
@@ -71,6 +72,17 @@ async def lifespan(_: FastAPI):
     Also initializes the GCP storage client for accessing audio files from Cloud Storage.
     """
     global model, storage_client, bucket
+    
+    # Debug: Print CUDA info
+    try:
+        print(f"PyTorch CUDA available: {torch.cuda.is_available()}")
+        print(f"PyTorch CUDA version: {torch.version.cuda}")
+        if torch.cuda.is_available():
+            print(f"GPU device: {torch.cuda.get_device_name(0)}")
+            print(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+    except Exception as e:
+        print(f"Error checking CUDA: {e}")
+
     model = WhisperModel("large-v3", device="cuda", compute_type="float16")
     
     # Initialize GCP storage client

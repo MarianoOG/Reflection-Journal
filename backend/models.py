@@ -54,6 +54,35 @@ class ReflectionTheme(SQLModel, table=True):
     theme_id: str = Field(foreign_key="theme.id")
     reflection_id: str = Field(foreign_key="reflection.id")
 
+class GoalType(str, Enum):
+    BOOLEAN = "boolean"
+    METRIC = "metric"
+
+class Goal(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: "goal_" + str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="user.id")
+
+    # SMART: Specific
+    title: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+    # SMART: Measurable - Type of goal
+    goal_type: GoalType = Field(default=GoalType.BOOLEAN)
+
+    # For boolean goals (yes/no completion)
+    is_completed: bool = Field(default=False)
+
+    # For metric goals (track progress)
+    target_value: Optional[float] = Field(default=None)
+    current_value: float = Field(default=0.0)
+    unit: Optional[str] = Field(default=None, max_length=50)  # e.g., "kg", "hours", "books"
+
+    # SMART: Time-bound
+    deadline: Optional[datetime] = Field(default=None)
+
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
 ####################
 #   DB Functions   #
 ####################

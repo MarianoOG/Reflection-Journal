@@ -81,7 +81,7 @@ async def lifespan(_: FastAPI):
     global model, storage_client, bucket
     
     if ENVIRONMENT == 'PROD':
-        model = WhisperModel("large-v3", device="cpu", compute_type="float16")
+        model = WhisperModel("large-v3", device="cpu", compute_type="int8")
     else:
         model = WhisperModel("medium", device="cpu", compute_type="int8")
     

@@ -5,6 +5,7 @@ This FastAPI application provides speech-to-text transcription using OpenAI's Wh
 It includes API key authentication and multi-language support via faster-whisper.
 """
 
+import logging
 import os
 import torch
 from contextlib import asynccontextmanager
@@ -16,6 +17,12 @@ from dotenv import load_dotenv
 from google.cloud import storage
 from faster_whisper import WhisperModel
 from pydantic import BaseModel
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
 
 
 # Environment Variables
@@ -73,24 +80,30 @@ async def lifespan(_: FastAPI):
     """
     global model, storage_client, bucket
     
-    # Debug: Print CUDA info
+    # Debug: Log CUDA info
+    device = 'cpu'
     try:
-        print(f"PyTorch CUDA available: {torch.cuda.is_available()}")
-        print(f"PyTorch CUDA version: {torch.version.cuda}")
+        logger.info(f"PyTorch CUDA available: {torch.cuda.is_available()}")
+        logger.info(f"PyTorch CUDA version: {torch.version.cuda}")
         if torch.cuda.is_available():
-            print(f"GPU device: {torch.cuda.get_device_name(0)}")
-            print(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+            device = 'cuda'
+            logger.info(f"GPU device: {torch.cuda.get_device_name(0)}")
+            logger.info(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
     except Exception as e:
-        print(f"Error checking CUDA: {e}")
+        logger.error(f"Error checking CUDA: {e}")
 
-    model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    # Initialize model based on device available
+    if device == 'cuda':
+        model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    else:
+        model = WhisperModel("base", device="cpu", compute_type="int8")
     
     # Initialize GCP storage client
     try:
         storage_client = storage.Client(project=PROJECT_NAME)
         bucket = storage_client.bucket(BUCKET_NAME)
     except Exception as e:
-        print(f"Warning: Failed to initialize GCP storage client: {e}")
+        logger.warning(f"Failed to initialize GCP storage client: {e}")
 
     yield
 

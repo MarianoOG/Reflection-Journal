@@ -49,7 +49,7 @@ jobs:
           --allow-unauthenticated \
           --min-instances=0 \
           --max-instances=3 \
-          --timeout=180 \
+          --timeout=360 \
           --project ${{ secrets.PROJECT_ID }} \
           --memory=8Gi \
           --cpu=4 \

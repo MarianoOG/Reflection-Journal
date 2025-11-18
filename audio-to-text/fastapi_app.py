@@ -83,7 +83,7 @@ async def lifespan(_: FastAPI):
     if ENVIRONMENT == 'PROD':
         model = WhisperModel("large-v3", device="cpu", compute_type="float16")
     else:
-        model = WhisperModel("base", device="cpu", compute_type="int8")
+        model = WhisperModel("medium", device="cpu", compute_type="int8")
     
     # Initialize GCP storage client
     try:

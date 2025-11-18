@@ -52,12 +52,15 @@ def upsert_goal(goal: Goal = Body(..., description="Goal object to upsert"),
             existing_goal.title = goal.title
             existing_goal.description = goal.description
             existing_goal.goal_type = goal.goal_type
-            existing_goal.is_completed = goal.is_completed
             existing_goal.target_value = goal.target_value
             existing_goal.current_value = goal.current_value
             existing_goal.unit = goal.unit
+            existing_goal.current_confidence = goal.current_confidence
+            existing_goal.justification = goal.justification
             existing_goal.deadline = goal.deadline
-            existing_goal.updated_at = datetime.now()
+            existing_goal.priority = goal.priority
+            existing_goal.status = goal.status
+            existing_goal.updated_at = datetime.utcnow()
 
             session.commit()
             session.refresh(existing_goal)
@@ -73,6 +76,9 @@ def upsert_goal(goal: Goal = Body(..., description="Goal object to upsert"),
 
             # Ensure the goal belongs to the authenticated user
             goal.user_id = current_user.id
+            # Set initial_confidence from current_confidence if provided
+            if goal.current_confidence and not goal.initial_confidence:
+                goal.initial_confidence = goal.current_confidence
             session.add(goal)
             session.commit()
             session.refresh(goal)

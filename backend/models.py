@@ -58,30 +58,56 @@ class GoalType(str, Enum):
     BOOLEAN = "boolean"
     METRIC = "metric"
 
+class GoalStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+
+class ConfidenceLevel(str, Enum):
+    VERY_CONFIDENT = "very_confident"
+    CONFIDENT = "confident"
+    MODERATELY_CONFIDENT = "moderately_confident"
+    SLIGHTLY_CONFIDENT = "slightly_confident"
+    NOT_CONFIDENT = "not_confident"
+
 class Goal(SQLModel, table=True):
+    __tablename__ = "goals"
+
     id: str = Field(default_factory=lambda: "goal_" + str(uuid.uuid4()), primary_key=True)
-    user_id: str = Field(foreign_key="user.id")
+    user_id: str = Field(foreign_key="user.id", index=True)
 
     # SMART: Specific
-    title: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=2000)
+    title: str = Field(max_length=200)
+    description: Optional[str] = Field(default=None, max_length=1000)
 
-    # SMART: Measurable - Type of goal
-    goal_type: GoalType = Field(default=GoalType.BOOLEAN)
-
-    # For boolean goals (yes/no completion)
-    is_completed: bool = Field(default=False)
+    # SMART: Measurable
+    goal_type: GoalType = Field(...)
 
     # For metric goals (track progress)
-    target_value: Optional[float] = Field(default=None)
-    current_value: float = Field(default=0.0)
-    unit: Optional[str] = Field(default=None, max_length=50)  # e.g., "kg", "hours", "books"
+    target_value: Optional[float] = None
+    current_value: Optional[float] = Field(default=0.0)
+    unit: Optional[str] = Field(default=None, max_length=50)  # e.g., "kg", "posts", "hours"
+
+    # SMART: Achievable - Track confidence changes
+    initial_confidence: Optional[ConfidenceLevel] = None  # Set at creation
+    current_confidence: Optional[ConfidenceLevel] = None  # Updated as things change
+
+    # SMART: Relevant
+    justification: Optional[str] = Field(default=None, max_length=500)
 
     # SMART: Time-bound
-    deadline: Optional[datetime] = Field(default=None)
+    deadline: Optional[datetime] = None
 
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    # Ordering & Priority
+    priority: int = Field(default=1000)  # Gap-based ordering per user
+
+    # Status Tracking
+    status: GoalStatus = Field(default=GoalStatus.NOT_STARTED)
+
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 ####################
 #   DB Functions   #

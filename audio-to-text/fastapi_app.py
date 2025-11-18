@@ -7,7 +7,6 @@ It includes API key authentication and multi-language support via faster-whisper
 
 import logging
 import os
-import torch
 from contextlib import asynccontextmanager
 from io import BytesIO
 from fastapi import FastAPI, HTTPException, Security
@@ -30,6 +29,7 @@ load_dotenv()
 DEVICE = os.environ.get("DEVICE")
 PROJECT_NAME = os.environ.get("PROJECT_NAME")
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "LOCAL")
 
 # Initialize global variables
 model = None
@@ -80,21 +80,8 @@ async def lifespan(_: FastAPI):
     """
     global model, storage_client, bucket
     
-    # Debug: Log CUDA info
-    device = 'cpu'
-    try:
-        logger.info(f"PyTorch CUDA available: {torch.cuda.is_available()}")
-        logger.info(f"PyTorch CUDA version: {torch.version.cuda}")
-        if torch.cuda.is_available():
-            device = 'cuda'
-            logger.info(f"GPU device: {torch.cuda.get_device_name(0)}")
-            logger.info(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
-    except Exception as e:
-        logger.error(f"Error checking CUDA: {e}")
-
-    # Initialize model based on device available
-    if device == 'cuda':
-        model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    if ENVIRONMENT == 'PROD':
+        model = WhisperModel("large-v3", device="cpu", compute_type="float16")
     else:
         model = WhisperModel("base", device="cpu", compute_type="int8")
     

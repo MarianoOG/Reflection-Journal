@@ -48,9 +48,9 @@ jobs:
           --image "${{ secrets.LOCATION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/reflection-journal/audio-to-text:latest" \
           --allow-unauthenticated \
           --min-instances=0 \
-          --max-instances=1 \
+          --max-instances=3 \
+          --timeout=180 \
           --project ${{ secrets.PROJECT_ID }} \
-          --gpu=1 \
-          --memory=16Gi \
+          --memory=8Gi \
           --cpu=4 \
           --set-env-vars="AUDIO_TO_TEXT_API_KEY=${{ secrets.AUDIO_TO_TEXT_API_KEY }},DEVICE=cuda,PROJECT_NAME=${{ secrets.PROJECT_ID }},BUCKET_NAME=${{ secrets.BUCKET_NAME }}"

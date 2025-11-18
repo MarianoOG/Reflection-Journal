@@ -1,6 +1,4 @@
-FROM pytorch/pytorch:2.9.1-cuda12.6-cudnn9-runtime
-RUN apt-get update && apt-get install -y python3 python3-venv ffmpeg && rm -rf /var/lib/apt/lists/*
-ENV LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH
+FROM python:3.12-slim
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
